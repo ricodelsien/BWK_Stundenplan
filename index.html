@@ -52,7 +52,7 @@
         <button class="icon-btn" id="btnSettings" aria-label="Einstellungen" title="Einstellungen">⚙️</button>
       </div>
 
-      <div class="hint" id="placeHint">Tipp: Tippe ein Fach/Sondermodul an – danach ein Feld im Plan. Oder ziehe per Drag&Drop (Desktop).</div>
+      <div class="hint" id="placeHint">Fach/Sondermodul antippen – anschließend ein Feld im Plan. Oder das Fach direkt in das Wunschfeld ziehen.</div>
 
       <details class="section" open>
         <summary class="section-title">
@@ -123,7 +123,7 @@
                 <div id="weekNotesPrint" class="week-notes-print only-print"></div>
               </div>
 
-              <div class="hint no-print">Klick auf ein Feld = bearbeiten. Doppelklick = schnell „leer“ setzen.</div>
+              <div class="hint no-print">Klick auf ein Feld = bearbeiten. Doppelklick = leeren.</div>
             </div>
           </div>
         </div>
@@ -133,8 +133,8 @@
             <div class="card-title">Ferien</div>
             <div class="holiday-head-right">
               <div class="seg" role="group" aria-label="Ferien-Referenz">
-                <button class="seg-btn" id="btnStateBE" type="button" data-state="BE">Berlin</button>
-                <button class="seg-btn" id="btnStateBB" type="button" data-state="BB">Brandenburg</button>
+                <button class="seg-btn" id="btnStateBE" type="button" data-state="BE">BER</button>
+                <button class="seg-btn" id="btnStateBB" type="button" data-state="BB">BRB</button>
               </div>
               <div class="chip" id="holidayStatus">—</div>
               <button class="icon-btn tiny" id="btnToggleHolidays" type="button" aria-label="Ferien einklappen/ausklappen" title="Ferien einklappen/ausklappen">▾</button>
@@ -157,18 +157,18 @@
   <!-- Help Modal -->
   <dialog class="modal" id="helpDialog">
     <form method="dialog" class="modal-box">
-      <div class="modal-title">So funktioniert’s</div>
+      <div class="modal-title">Kurzanleitung</div>
       <div class="hint" style="margin-top:10px">
         <ul class="help-list">
           <li><b>Module anlegen:</b> Lehrkräfte, Fächer (mit Farbe) und Sonderveranstaltungen links über <b>＋</b>.</li>
           <li><b>Schnell einfügen:</b> Fach/Sonder antippen → dann ein Feld im Plan antippen. <b>Esc</b> bricht ab.</li>
           <li><b>Desktop:</b> Module per Drag&Drop in ein Feld ziehen.</li>
           <li><b>Bearbeiten:</b> Klick aufs Feld öffnet den Editor. Doppelklick setzt sofort <b>leer</b>.</li>
-          <li><b>Ganzer Tag:</b> Im Editor zusätzliche Blöcke per Checkbox wählen → Speichern.</li>
-          <li><b>Freitext:</b> Notizen unten werden mitgedruckt, wenn gefüllt.</li>
+          <li><b>Ganzer Tag:</b> Im Editor zusätzliche Stundenblöcke über Checkbox auswählen → Speichern.</li>
+          <li><b>Freitext:</b> Notizen / Anmerkungen werden mitgedruckt, wenn vorhanden.</li>
           <li><b>Export/Import:</b> Backup als JSON sichern oder wieder einlesen.</li>
-          <li><b>Ferien:</b> Nur Berlin/Brandenburg als grobe Referenz, ohne Einfluss auf den Plan.</li>
-          <li><b>Feiertage (Berlin):</b> Gesetzliche Feiertage werden markiert – Planung ist an diesen Tagen gesperrt (wenn online abrufbar).</li>
+          <li><b>Ferien:</b> Nur BER/BRB als grobe Referenz, ohne Einfluss auf den Plan.</li>
+          <li><b>Feiertage (BER):</b> Gesetzliche Feiertage werden markiert – Planung ist an diesen Tagen gesperrt.</li>
         </ul>
       </div>
       <div class="modal-actions">
@@ -321,7 +321,7 @@
     <form method="dialog" class="modal-box" id="settingsForm">
       <div class="modal-title">Einstellungen</div>
 
-      <div class="hint">Block-Beschriftungen (4 Doppelblöcke). Du kannst hier auch Zeiten reinpacken.</div>
+      <div class="hint">Block-Beschriftungen (4 Doppelblöcke). Es können auch Unterrichtszeiten eingetragen werden.</div>
 
       <div class="row">
         <label class="field">
@@ -347,7 +347,7 @@
 
       <div class="row">
         <label class="field">
-          <span>Akzent (gedeckt)</span>
+          <span>Akzentfarbe</span>
           <select id="accentSelect" aria-label="Akzentfarbe wählen">
             <option value="blue">Blau</option>
             <option value="green">Grün</option>
@@ -359,7 +359,7 @@
         </label>
         <div class="field">
           <span>Hinweis</span>
-          <div class="hint" style="margin-top:0">Der Akzent beeinflusst Fokus/Highlights (nicht die Fachfarben).</div>
+          <div class="hint" style="margin-top:0">Der Akzent beeinflusst Hintergrund und Fenster (nicht die Fachfarben).</div>
         </div>
       </div>
 
@@ -375,8 +375,8 @@
     <div class="modal-box">
       <div class="modal-title">Import</div>
       <div class="hint">
-        Du kannst die importierten Daten entweder <b>ersetzen</b> (empfohlen nach Cookie-/Storage-Löschung),
-        oder <b>zusammenführen</b> (merge).
+        Die importierten Daten können entweder <b>ersetzt</b> (empfohlen nach Cookie-/Browserdaten-Löschung),
+        oder <b>zusammenführt</b> werden.
       </div>
 
       <div class="modal-actions">

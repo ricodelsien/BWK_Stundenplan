@@ -4,6 +4,7 @@
    - 4 Doppelblöcke / Tag, Mo–Fr
    - quick place mode + drag&drop
    - print A4 landscape
+   - v.0.6 Nico Siedler (ricodelsien)
 */
 
 (() => {
@@ -63,22 +64,8 @@
   let entryTeacherTouched = false;
 
   const STATE_OPTIONS = [
-    { code: 'BW', name: 'Baden-Württemberg' },
-    { code: 'BY', name: 'Bayern' },
     { code: 'BE', name: 'Berlin' },
     { code: 'BB', name: 'Brandenburg' },
-    { code: 'HB', name: 'Bremen' },
-    { code: 'HH', name: 'Hamburg' },
-    { code: 'HE', name: 'Hessen' },
-    { code: 'MV', name: 'Mecklenburg-Vorpommern' },
-    { code: 'NI', name: 'Niedersachsen' },
-    { code: 'NW', name: 'Nordrhein-Westfalen' },
-    { code: 'RP', name: 'Rheinland-Pfalz' },
-    { code: 'SL', name: 'Saarland' },
-    { code: 'SN', name: 'Sachsen' },
-    { code: 'ST', name: 'Sachsen-Anhalt' },
-    { code: 'SH', name: 'Schleswig-Holstein' },
-    { code: 'TH', name: 'Thüringen' },
   ];
 
   const HOLIDAY_STATE_CODES = ['BE', 'BB'];
@@ -525,7 +512,7 @@
     $('#planSub').textContent = `${formatDateLong(mon)} – ${formatDateLong(fri)}`;
 
     const stateName = STATE_OPTIONS.find(s => s.code === view.stateCode)?.name || view.stateCode;
-    $('#planState').textContent = `Ferien-Referenz: ${stateName}`;
+    $('#planState').textContent = `Feiertags-Referenz: ${stateName}`;
 
     $('#appInfo').textContent = `Version ${APP_VERSION} · Nico Siedler · lokal im Browser gespeichert`;
   }
@@ -971,9 +958,9 @@
     if(view.placement){
       const token = document.querySelector(`.token[data-type="${view.placement.type}"][data-id="${view.placement.id}"]`);
       if(token) token.classList.add('armed');
-      $('#placeHint').textContent = 'Einfügen aktiv: tippe ein Feld im Plan (Esc zum Abbrechen).';
+      $('#placeHint').textContent = 'Einfügen aktiv: Feld im Plan antippen. (Esc zum Abbrechen).';
     } else {
-      $('#placeHint').textContent = 'Tipp: Tippe ein Fach/Sondermodul an – danach ein Feld im Plan. Oder ziehe per Drag&Drop (Desktop).';
+      $('#placeHint').textContent = 'Fach/Sondermodul antippen – anschließend ein Feld im Plan. Oder das Fach direkt in das Wunschfeld ziehen.';
     }
   }
 
