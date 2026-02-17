@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0d10" />
+  <title>BWK-Stundenplan</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header class="topbar no-print">
+    <button class="icon-btn" id="btnToggleSidebar" aria-label="Seitenleiste öffnen/schließen">☰</button>
+
+    <div class="brand">
+      <div class="brand-title">BWK-Stundenplan</div>
+      <div class="brand-sub">modular, mobil, druckfertig (A4 quer)</div>
+    </div>
+
+    <div class="top-actions">
+      <div class="controls" aria-label="Woche auswählen">
+        <button class="icon-btn" id="btnPrevWeek" title="Vorherige Woche" aria-label="Vorherige Woche">◀</button>
+
+        <input class="ctrl small" id="yearInput" type="number" inputmode="numeric" min="2026" max="2099" step="1" aria-label="Jahr" />
+        <select class="ctrl small" id="weekSelect" aria-label="Kalenderwoche"></select>
+
+        <div class="week-range" id="weekRangeLabel">—</div>
+
+        <button class="icon-btn" id="btnNextWeek" title="Nächste Woche" aria-label="Nächste Woche">▶</button>
+
+        <select class="ctrl medium" id="stateSelect" aria-label="Bundesland für Ferien"></select>
+      </div>
+
+      <button class="btn" id="btnPrint">🖨️ Drucken</button>
+
+      <button class="icon-btn" id="btnSaveNow" aria-label="Jetzt lokal speichern" title="Jetzt lokal speichern">💾</button>
+      <button class="icon-btn" id="btnExport" aria-label="Backup exportieren" title="Backup exportieren">⬇️</button>
+
+      <input id="importFile" type="file" accept="application/json" hidden />
+      <button class="icon-btn" id="btnImport" aria-label="Backup importieren" title="Backup importieren">⬆️</button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <aside class="sidebar no-print" id="sidebar">
+      <div class="sidebar-head">
+        <div class="sidebar-title">Module</div>
+        <button class="icon-btn" id="btnSettings" aria-label="Einstellungen" title="Einstellungen">⚙️</button>
+      </div>
+
+      <div class="hint" id="placeHint">Tipp: Tippe ein Fach/Sondermodul an – danach ein Feld im Plan. Oder ziehe per Drag&Drop (Desktop).</div>
+
+      <details class="section" open>
+        <summary class="section-title">Lehrkräfte <span class="count" id="countTeachers">0</span></summary>
+        <div class="list" id="teacherList"></div>
+        <div class="hint">
+          <button class="btn" id="btnAddTeacher">+ Lehrkraft</button>
+        </div>
+      </details>
+
+      <details class="section" open>
+        <summary class="section-title">Fächer <span class="count" id="countSubjects">0</span></summary>
+        <div class="list" id="subjectList"></div>
+        <div class="hint">
+          <button class="btn" id="btnAddSubject">+ Fach</button>
+        </div>
+      </details>
+
+      <details class="section">
+        <summary class="section-title">Sonderveranstaltungen <span class="count" id="countSpecials">0</span></summary>
+        <div class="list" id="specialList"></div>
+        <div class="hint">
+          <button class="btn" id="btnAddSpecial">+ Sonder</button>
+        </div>
+      </details>
+
+      <div class="sidebar-foot">
+        <div class="small" id="saveInfo">—</div>
+        <div class="small" id="appInfo">—</div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="grid">
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Stundenplan</div>
+            <div class="controls no-print">
+              <button class="btn ghost" id="btnClearWeek">Woche leeren</button>
+            </div>
+          </div>
+
+          <div class="print-area" id="printArea">
+            <div class="plan-meta">
+              <div>
+                <div class="title" id="planTitle">—</div>
+                <div class="sub" id="planSub">—</div>
+              </div>
+              <div class="sub" id="planState">—</div>
+            </div>
+
+            <div class="timetable" id="timetable"></div>
+
+            <div class="legend" id="legend"></div>
+
+            <div class="hint no-print">Klick auf ein Feld = bearbeiten. Doppelklick = schnell „leer“ setzen.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <div class="card-title">Ferien-Übersicht (Gimmick)</div>
+            <div class="chip" id="holidayStatus">—</div>
+          </div>
+
+          <div class="section">
+            <div class="hint">Die Ferien dienen nur zur groben Orientierung – sie beeinflussen den Plan nicht automatisch.</div>
+            <div class="list" id="holidayList"></div>
+            <div class="hint" id="holidayHint"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Teacher Modal -->
+  <dialog class="modal" id="teacherDialog">
+    <form method="dialog" class="modal-box" id="teacherForm">
+      <div class="modal-title" id="teacherDialogTitle">Lehrkraft hinzufügen</div>
+
+      <label class="field">
+        <span>Name</span>
+        <input id="teacherName" type="text" required minlength="1" maxlength="60" placeholder="z. B. Frau Müller" />
+      </label>
+
+      <label class="field">
+        <span>Kürzel (optional)</span>
+        <input id="teacherShort" type="text" maxlength="12" placeholder="z. B. MÜL" />
+      </label>
+
+      <div class="modal-actions">
+        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn danger" id="teacherDeleteBtn" type="button">Löschen</button>
+        <button class="btn" id="teacherSubmit" value="ok">Speichern</button>
+      </div>
+
+      <input type="hidden" id="teacherEditId" />
+    </form>
+  </dialog>
+
+  <!-- Subject Modal -->
+  <dialog class="modal" id="subjectDialog">
+    <form method="dialog" class="modal-box" id="subjectForm">
+      <div class="modal-title" id="subjectDialogTitle">Fach hinzufügen</div>
+
+      <label class="field">
+        <span>Fach</span>
+        <input id="subjectName" type="text" required minlength="1" maxlength="60" placeholder="z. B. Mathe" />
+      </label>
+
+      <div class="row">
+        <label class="field">
+          <span>Farbe</span>
+          <input id="subjectColor" type="color" value="#6aa6ff" />
+        </label>
+        <label class="field">
+          <span>Standard-Lehrkraft (optional)</span>
+          <select id="subjectDefaultTeacher"></select>
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn danger" id="subjectDeleteBtn" type="button">Löschen</button>
+        <button class="btn" id="subjectSubmit" value="ok">Speichern</button>
+      </div>
+
+      <input type="hidden" id="subjectEditId" />
+    </form>
+  </dialog>
+
+  <!-- Special Modal -->
+  <dialog class="modal" id="specialDialog">
+    <form method="dialog" class="modal-box" id="specialForm">
+      <div class="modal-title" id="specialDialogTitle">Sonderveranstaltung hinzufügen</div>
+
+      <label class="field">
+        <span>Titel</span>
+        <input id="specialTitle" type="text" required minlength="1" maxlength="80" placeholder="z. B. Exkursion, Prüfung, Workshop" />
+      </label>
+
+      <label class="field">
+        <span>Farbe</span>
+        <input id="specialColor" type="color" value="#ffb86b" />
+      </label>
+
+      <div class="modal-actions">
+        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn danger" id="specialDeleteBtn" type="button">Löschen</button>
+        <button class="btn" id="specialSubmit" value="ok">Speichern</button>
+      </div>
+
+      <input type="hidden" id="specialEditId" />
+    </form>
+  </dialog>
+
+  <!-- Entry Modal (cell editor) -->
+  <dialog class="modal" id="entryDialog">
+    <form method="dialog" class="modal-box" id="entryForm">
+      <div class="modal-title" id="entryDialogTitle">Eintrag</div>
+
+      <div class="row">
+        <label class="field">
+          <span>Typ</span>
+          <select id="entryType">
+            <option value="empty">Leer</option>
+            <option value="subject">Fach</option>
+            <option value="special">Sonder</option>
+          </select>
+        </label>
+
+        <label class="field" id="entrySubjectWrap">
+          <span>Fach</span>
+          <select id="entrySubject"></select>
+        </label>
+      </div>
+
+      <div class="row" id="entryTeacherRow">
+        <label class="field">
+          <span>Lehrkraft (optional)</span>
+          <select id="entryTeacher"></select>
+        </label>
+        <label class="field" id="entrySpecialWrap">
+          <span>Sonder</span>
+          <select id="entrySpecial"></select>
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span>Raum (optional)</span>
+          <input id="entryRoom" type="text" maxlength="40" placeholder="z. B. R. 210" />
+        </label>
+        <label class="field">
+          <span>Notiz (optional)</span>
+          <input id="entryNote" type="text" maxlength="80" placeholder="z. B. Vertretung, Thema, …" />
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn danger" id="entryDeleteBtn" type="button">Löschen</button>
+        <button class="btn" id="entrySubmit" value="ok">Speichern</button>
+      </div>
+
+      <input type="hidden" id="entryCellKey" />
+    </form>
+  </dialog>
+
+  <!-- Settings Modal -->
+  <dialog class="modal" id="settingsDialog">
+    <form method="dialog" class="modal-box" id="settingsForm">
+      <div class="modal-title">Einstellungen</div>
+
+      <div class="hint">Block-Beschriftungen (4 Doppelblöcke). Du kannst hier auch Zeiten reinpacken.</div>
+
+      <div class="row">
+        <label class="field">
+          <span>Block 1</span>
+          <input id="slot1" type="text" maxlength="40" placeholder="z. B. 08:30–10:00" />
+        </label>
+        <label class="field">
+          <span>Block 2</span>
+          <input id="slot2" type="text" maxlength="40" placeholder="z. B. 10:15–11:45" />
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span>Block 3</span>
+          <input id="slot3" type="text" maxlength="40" placeholder="z. B. 12:30–14:00" />
+        </label>
+        <label class="field">
+          <span>Block 4</span>
+          <input id="slot4" type="text" maxlength="40" placeholder="z. B. 14:15–15:45" />
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn" id="settingsSubmit" value="ok">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Import Modal -->
+  <dialog class="modal" id="importDialog">
+    <div class="modal-box">
+      <div class="modal-title">Import</div>
+      <div class="hint">
+        Du kannst die importierten Daten entweder <b>ersetzen</b> (empfohlen nach Cookie-/Storage-Löschung),
+        oder <b>zusammenführen</b> (merge).
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn ghost" id="importCancel">Abbrechen</button>
+        <button class="btn" id="importMerge">Zusammenführen</button>
+        <button class="btn danger" id="importReplace">Ersetzen</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
