@@ -11,7 +11,7 @@
 
   const STORAGE_KEY = 'bwk_stundenplan_v1';
   const HOLIDAY_CACHE_KEY = 'bwk_stundenplan_holiday_cache_v1';
-  const APP_VERSION = '0.1';
+  const APP_VERSION = '0.2';
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -28,6 +28,8 @@
 
   let saveTimer = null;
   let holidayCache = loadHolidayCache();
+
+  let entryTeacherTouched = false;
 
   const STATE_OPTIONS = [
     { code: 'BW', name: 'Baden-Württemberg' },
@@ -178,7 +180,7 @@
       teachers: [],
       subjects: [],
       specials: [],
-      weeks: {}, // { [weekKey]: { cells: { 'day-slot': entry } } }
+      weeks: {}, // { [weekKey]: { cells: { 'day-slot': entry }, note: string } }
     };
   }
 
@@ -203,6 +205,16 @@
     out.teachers = out.teachers.filter(t => t && t.id && t.name);
     out.subjects = out.subjects.filter(s => s && s.id && s.name);
     out.specials = out.specials.filter(s => s && s.id && s.title);
+
+    // normalize weeks shape (older exports may only have {cells})
+    for(const [k, wk] of Object.entries(out.weeks || {})){
+      if(!wk || typeof wk !== 'object'){
+        out.weeks[k] = { cells: {}, note: '' };
+        continue;
+      }
+      if(!wk.cells || typeof wk.cells !== 'object') wk.cells = {};
+      if(typeof wk.note !== 'string') wk.note = '';
+    }
 
     return out;
   }
@@ -366,6 +378,7 @@
     renderTimetable();
     renderHolidays();
     updatePlacementUI();
+    syncWeekNotesUI();
   }
 
   function renderTop(){
@@ -541,9 +554,29 @@
 
   function getWeekObj(){
     const key = weekKey(view.isoYear, view.isoWeek);
-    if(!data.weeks[key]) data.weeks[key] = { cells: {} };
+    if(!data.weeks[key]) data.weeks[key] = { cells: {}, note: '' };
     if(!data.weeks[key].cells) data.weeks[key].cells = {};
+    if(typeof data.weeks[key].note !== 'string') data.weeks[key].note = '';
     return data.weeks[key];
+  }
+
+  function getWeekNote(){
+    return getWeekObj().note || '';
+  }
+
+  function setWeekNote(note){
+    const wk = getWeekObj();
+    wk.note = String(note || '');
+    saveData();
+  }
+
+  function syncWeekNotesUI(){
+    const input = $('#weekNotesInput');
+    const print = $('#weekNotesPrint');
+    if(!input || !print) return;
+    const note = getWeekNote();
+    if(document.activeElement !== input) input.value = note;
+    print.textContent = note.trim();
   }
 
   function getEntry(day, slot){
@@ -564,12 +597,28 @@
     renderLegend();
   }
 
+  function setEntries(day, slots, entry){
+    const wk = getWeekObj();
+    for(const slot of slots){
+      const k = `${day}-${slot}`;
+      if(!entry || entry.type === 'empty'){
+        delete wk.cells[k];
+      } else {
+        wk.cells[k] = { ...entry };
+      }
+    }
+    saveData();
+    renderTimetable();
+    renderLegend();
+  }
+
   function clearWeek(){
     const key = weekKey(view.isoYear, view.isoWeek);
     delete data.weeks[key];
     saveData(true);
     renderTimetable();
     renderLegend();
+    syncWeekNotesUI();
     toast('Woche geleert');
   }
 
@@ -866,9 +915,63 @@
     $('#entryCellKey').value = `${day}-${slot}`;
     $('#entryDeleteBtn').style.display = entry ? 'inline-flex' : 'none';
 
+    // apply-to-blocks UI (same weekday)
+    buildApplyGrid(slot);
+
+    // reset teacher-touch state (used for default teacher preselection)
+    entryTeacherTouched = false;
+    if(type === 'subject'){
+      // if teacher is empty, prefill from subject default
+      maybeApplyDefaultTeacher(true);
+    }
+
     syncEntryFields();
 
     dlg.showModal();
+  }
+
+  function buildApplyGrid(currentSlot){
+    const grid = $('#applyGrid');
+    if(!grid) return;
+    grid.innerHTML = '';
+
+    const labels = data.settings.slotLabels || ['Block 1','Block 2','Block 3','Block 4'];
+    for(let s=0; s<4; s++){
+      const lab = document.createElement('label');
+      lab.className = 'apply-chip';
+      const title = labels[s] || `Block ${s+1}`;
+      lab.title = title;
+      lab.innerHTML = `<input type="checkbox" name="applySlot" value="${s}" /><span>B${s+1}</span>`;
+      const cb = lab.querySelector('input');
+      if(s === currentSlot){
+        cb.checked = true;
+        cb.disabled = true;
+      }
+      grid.appendChild(lab);
+    }
+  }
+
+  function maybeApplyDefaultTeacher(force=false){
+    const type = $('#entryType')?.value;
+    if(type !== 'subject') return;
+
+    const subjectId = $('#entrySubject')?.value;
+    if(!subjectId) return;
+
+    const subj = data.subjects.find(s => s.id === subjectId);
+    if(!subj?.defaultTeacherId) return;
+
+    const teacherSel = $('#entryTeacher');
+    if(!teacherSel) return;
+
+    if(force){
+      if(!teacherSel.value) teacherSel.value = subj.defaultTeacherId;
+      return;
+    }
+
+    if(!entryTeacherTouched){
+      teacherSel.value = subj.defaultTeacherId;
+    }
   }
 
   function syncEntryFields(){
@@ -879,6 +982,7 @@
     $('#entrySubjectWrap').style.display = (type === 'subject') ? 'block' : 'none';
     $('#entryTeacherRow').style.display = (type === 'subject' || type === 'special') ? 'grid' : 'none';
     $('#entrySpecialWrap').style.display = (type === 'special') ? 'block' : 'none';
+    $('#applyWrap').style.display = (type === 'subject' || type === 'special') ? 'block' : 'none';
 
     // graceful disable
     $('#entrySubject').disabled = !hasSubjects;
@@ -891,6 +995,10 @@
     if(type === 'special' && !hasSpecials){
       toast('Lege zuerst eine Sonderveranstaltung an.');
       $('#entryType').value = 'empty';
+    }
+
+    if($('#entryType').value === 'subject'){
+      maybeApplyDefaultTeacher(false);
     }
   }
 
@@ -1056,6 +1164,20 @@
 
     $('#btnPrint').addEventListener('click', () => window.print());
 
+    // week notes
+    $('#weekNotesInput').addEventListener('input', (e) => {
+      setWeekNote(e.target.value);
+      syncWeekNotesUI();
+    });
+
+    // ensure print only shows notes if filled
+    window.addEventListener('beforeprint', () => {
+      const note = getWeekNote().trim();
+      document.body.classList.toggle('print-has-notes', note.length > 0);
+      const printEl = $('#weekNotesPrint');
+      if(printEl) printEl.textContent = note;
+    });
+
     $('#btnClearWeek').addEventListener('click', () => {
       const ok = confirm(`Woche KW ${view.isoWeek}/${view.isoYear} wirklich leeren?`);
       if(ok) clearWeek();
@@ -1072,6 +1194,8 @@
     $('#specialDeleteBtn').addEventListener('click', onSpecialDelete);
 
     $('#entryType').addEventListener('change', syncEntryFields);
+    $('#entrySubject').addEventListener('change', () => maybeApplyDefaultTeacher(false));
+    $('#entryTeacher').addEventListener('change', () => { entryTeacherTouched = true; });
     $('#entryForm').addEventListener('submit', onEntrySubmit);
     $('#entryDeleteBtn').addEventListener('click', onEntryDelete);
 
@@ -1305,6 +1429,10 @@
       return;
     }
 
+    // selected blocks (same weekday)
+    let slots = $$('#applyGrid input[name="applySlot"]:checked').map(x => Number(x.value));
+    if(!slots.length) slots = [slot];
+
     const teacherId = $('#entryTeacher').value || '';
     const room = $('#entryRoom').value.trim();
     const note = $('#entryNote').value.trim();
@@ -1315,7 +1443,7 @@
         toast('Bitte ein Fach wählen.');
         return;
       }
-      setEntry(day, slot, { type:'subject', subjectId, teacherId, room, note });
+      setEntries(day, slots, { type:'subject', subjectId, teacherId, room, note });
     }
 
     if(type === 'special'){
@@ -1324,7 +1452,7 @@
         toast('Bitte eine Sonderveranstaltung wählen.');
         return;
       }
-      setEntry(day, slot, { type:'special', specialId, teacherId, room, note });
+      setEntries(day, slots, { type:'special', specialId, teacherId, room, note });
     }
 
     $('#entryDialog').close();
@@ -1408,11 +1536,16 @@
       // weeks: do not overwrite existing cells
       for(const [wkKey, wk] of Object.entries(incoming.weeks || {})){
         if(!wk || !wk.cells) continue;
-        if(!merged.weeks[wkKey]) merged.weeks[wkKey] = { cells: {} };
+        if(!merged.weeks[wkKey]) merged.weeks[wkKey] = { cells: {}, note: '' };
         const target = merged.weeks[wkKey].cells;
         for(const [cellKey, entry] of Object.entries(wk.cells)){
           if(!target[cellKey]) target[cellKey] = entry;
         }
+
+        // copy week note only if the current one is empty
+        if(typeof merged.weeks[wkKey].note !== 'string') merged.weeks[wkKey].note = '';
+        const incomingNote = (typeof wk.note === 'string') ? wk.note.trim() : '';
+        if(!merged.weeks[wkKey].note.trim() && incomingNote) merged.weeks[wkKey].note = incomingNote;
       }
 
       // settings: keep current slot labels/state unless missing

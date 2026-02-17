@@ -2,7 +2,8 @@
    based on BWK-Aufgabenplanung look & feel */
 
 :root{
-  color-scheme: dark light;
+  /* keep native controls consistent with the active theme */
+  color-scheme: dark;
 
   --bg: #0b0d10;
   --panel: #11161d;
@@ -31,6 +32,7 @@ body{
 
 @media (prefers-color-scheme: light){
   :root{
+    color-scheme: light;
     --bg: #f4f7ff;
     --panel: #ffffff;
     --card: #ffffff;
@@ -179,6 +181,12 @@ body.sidebar-collapsed .sidebar{ display: none; }
   background: rgba(255,255,255,.06);
   cursor: pointer;
   font-weight: 650;
+}
+
+.btn.small{
+  height: 36px;
+  padding: 0 12px;
+  font-size: 14px;
 }
 .btn:hover{ background: rgba(255,255,255,.09); }
 .btn:active{ transform: translateY(1px); }
@@ -427,6 +435,53 @@ details[open] > summary.section-title::after{ content: "▴"; }
   outline: none;
   font-size: 16px; /* iOS zoom */
 }
+
+/* Fix: some browsers render <select> with light background in dark mode */
+select{
+  background-color: rgba(255,255,255,.04);
+  color: var(--text);
+}
+option{
+  background-color: var(--panel);
+  color: var(--text);
+}
+
+.modal-box{ color-scheme: inherit; }
+
+/* Apply-to-blocks UI */
+.apply-wrap{ margin-top: 10px; }
+.apply-title{ font-size: 12px; color: var(--muted); font-weight: 650; }
+.apply-grid{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+.apply-chip{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  border-radius: 14px;
+  border: 1px solid var(--soft2);
+  background: rgba(255,255,255,.03);
+  cursor: pointer;
+  user-select: none;
+}
+.apply-chip input{ width: 16px; height: 16px; }
+.apply-chip span{ font-weight: 720; font-size: 13px; }
+
+/* Week notes */
+.week-notes{ margin-top: 12px; }
+.week-notes-title{ font-size: 12px; color: var(--muted); font-weight: 650; margin-bottom: 6px; }
+.week-notes-input{
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--soft2);
+  background: rgba(255,255,255,.03);
+  padding: 12px;
+  outline: none;
+  resize: vertical;
+  min-height: 70px;
+}
+.week-notes-input:focus{ border-color: rgba(140,200,255,.7); }
+.only-print{ display: none; }
 .field input:focus, .field select:focus, .field textarea:focus{ border-color: rgba(140,200,255,.7); }
 
 .field.inline{ flex-direction: row; align-items: center; gap: 10px; }
@@ -521,6 +576,22 @@ details[open] > summary.section-title::after{ content: "▴"; }
   .card-head{ display: none; }
 
   .print-area{ padding: 0; }
+
+  /* Center + scale to 95% (A4 landscape) */
+  .print-area{ display: flex; justify-content: center; }
+  .print-inner{ width: 100%; transform: scale(.95); transform-origin: top center; }
+
+  .week-notes-input{ display: none !important; }
+  .only-print{ display: block; }
+  body:not(.print-has-notes) #weekNotesWrap{ display: none !important; }
+  .week-notes-print{
+    margin-top: 6px;
+    border: 1px solid rgba(0,0,0,.25);
+    border-radius: 16px;
+    padding: 10px 12px;
+    white-space: pre-wrap;
+    min-height: 44px;
+  }
 
   .timetable{ border: 1px solid rgba(0,0,0,.25); }
   .tt-head, .tt-rowlabel{ background: #f5f7ff; }

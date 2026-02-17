@@ -14,7 +14,6 @@
 
     <div class="brand">
       <div class="brand-title">BWK-Stundenplan</div>
-      <div class="brand-sub">modular, mobil, druckfertig (A4 quer)</div>
     </div>
 
     <div class="top-actions">
@@ -54,7 +53,7 @@
         <summary class="section-title">Lehrkräfte <span class="count" id="countTeachers">0</span></summary>
         <div class="list" id="teacherList"></div>
         <div class="hint">
-          <button class="btn" id="btnAddTeacher">+ Lehrkraft</button>
+          <button class="btn small" id="btnAddTeacher">+ Lehrkraft</button>
         </div>
       </details>
 
@@ -62,7 +61,7 @@
         <summary class="section-title">Fächer <span class="count" id="countSubjects">0</span></summary>
         <div class="list" id="subjectList"></div>
         <div class="hint">
-          <button class="btn" id="btnAddSubject">+ Fach</button>
+          <button class="btn small" id="btnAddSubject">+ Fach</button>
         </div>
       </details>
 
@@ -70,7 +69,7 @@
         <summary class="section-title">Sonderveranstaltungen <span class="count" id="countSpecials">0</span></summary>
         <div class="list" id="specialList"></div>
         <div class="hint">
-          <button class="btn" id="btnAddSpecial">+ Sonder</button>
+          <button class="btn small" id="btnAddSpecial">+ Sonder</button>
         </div>
       </details>
 
@@ -91,25 +90,33 @@
           </div>
 
           <div class="print-area" id="printArea">
-            <div class="plan-meta">
-              <div>
-                <div class="title" id="planTitle">—</div>
-                <div class="sub" id="planSub">—</div>
+            <div class="print-inner" id="printInner">
+              <div class="plan-meta">
+                <div>
+                  <div class="title" id="planTitle">—</div>
+                  <div class="sub" id="planSub">—</div>
+                </div>
+                <div class="sub" id="planState">—</div>
               </div>
-              <div class="sub" id="planState">—</div>
+
+              <div class="timetable" id="timetable"></div>
+
+              <div class="legend" id="legend"></div>
+
+              <div class="week-notes" id="weekNotesWrap">
+                <div class="week-notes-title">Freitext (optional)</div>
+                <textarea id="weekNotesInput" class="week-notes-input" rows="3" maxlength="800" placeholder="z. B. Hinweise, Absprachen, Besonderheiten der Woche …"></textarea>
+                <div id="weekNotesPrint" class="week-notes-print only-print"></div>
+              </div>
+
+              <div class="hint no-print">Klick auf ein Feld = bearbeiten. Doppelklick = schnell „leer“ setzen.</div>
             </div>
-
-            <div class="timetable" id="timetable"></div>
-
-            <div class="legend" id="legend"></div>
-
-            <div class="hint no-print">Klick auf ein Feld = bearbeiten. Doppelklick = schnell „leer“ setzen.</div>
           </div>
         </div>
 
         <div class="card">
           <div class="card-head">
-            <div class="card-title">Ferien-Übersicht (Gimmick)</div>
+          <div class="card-title">Ferien-Übersicht</div>
             <div class="chip" id="holidayStatus">—</div>
           </div>
 
@@ -245,6 +252,11 @@
           <span>Notiz (optional)</span>
           <input id="entryNote" type="text" maxlength="80" placeholder="z. B. Vertretung, Thema, …" />
         </label>
+      </div>
+
+      <div class="apply-wrap" id="applyWrap">
+        <div class="apply-title">Auf weitere Blöcke anwenden (gleicher Tag)</div>
+        <div class="apply-grid" id="applyGrid" aria-label="Blöcke auswählen"></div>
       </div>
 
       <div class="modal-actions">
