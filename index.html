@@ -27,10 +27,13 @@
 
         <button class="icon-btn" id="btnNextWeek" title="Nächste Woche" aria-label="Nächste Woche">▶</button>
 
-        <select class="ctrl medium" id="stateSelect" aria-label="Bundesland für Ferien"></select>
+        <button class="btn ghost" id="btnToday" title="Zur aktuellen Woche springen">Heute</button>
       </div>
 
       <button class="btn" id="btnPrint">🖨️ Drucken</button>
+
+      <button class="icon-btn" id="btnHelp" aria-label="Hilfe" title="Hilfe">?</button>
+      <button class="icon-btn" id="btnReload" aria-label="App neu laden" title="App neu laden">⟳</button>
 
       <button class="icon-btn" id="btnSaveNow" aria-label="Jetzt lokal speichern" title="Jetzt lokal speichern">💾</button>
       <button class="icon-btn" id="btnExport" aria-label="Backup exportieren" title="Backup exportieren">⬇️</button>
@@ -50,27 +53,36 @@
       <div class="hint" id="placeHint">Tipp: Tippe ein Fach/Sondermodul an – danach ein Feld im Plan. Oder ziehe per Drag&Drop (Desktop).</div>
 
       <details class="section" open>
-        <summary class="section-title">Lehrkräfte <span class="count" id="countTeachers">0</span></summary>
+        <summary class="section-title">
+          Lehrkräfte
+          <span class="summary-actions">
+            <span class="count" id="countTeachers">0</span>
+            <button class="icon-btn tiny" id="btnAddTeacher" type="button" aria-label="Lehrkraft hinzufügen" title="Lehrkraft hinzufügen">＋</button>
+          </span>
+        </summary>
         <div class="list" id="teacherList"></div>
-        <div class="hint">
-          <button class="btn small" id="btnAddTeacher">+ Lehrkraft</button>
-        </div>
       </details>
 
       <details class="section" open>
-        <summary class="section-title">Fächer <span class="count" id="countSubjects">0</span></summary>
+        <summary class="section-title">
+          Fächer
+          <span class="summary-actions">
+            <span class="count" id="countSubjects">0</span>
+            <button class="icon-btn tiny" id="btnAddSubject" type="button" aria-label="Fach hinzufügen" title="Fach hinzufügen">＋</button>
+          </span>
+        </summary>
         <div class="list" id="subjectList"></div>
-        <div class="hint">
-          <button class="btn small" id="btnAddSubject">+ Fach</button>
-        </div>
       </details>
 
       <details class="section">
-        <summary class="section-title">Sonderveranstaltungen <span class="count" id="countSpecials">0</span></summary>
+        <summary class="section-title">
+          Sonderveranstaltungen
+          <span class="summary-actions">
+            <span class="count" id="countSpecials">0</span>
+            <button class="icon-btn tiny" id="btnAddSpecial" type="button" aria-label="Sonderveranstaltung hinzufügen" title="Sonderveranstaltung hinzufügen">＋</button>
+          </span>
+        </summary>
         <div class="list" id="specialList"></div>
-        <div class="hint">
-          <button class="btn small" id="btnAddSpecial">+ Sonder</button>
-        </div>
       </details>
 
       <div class="sidebar-foot">
@@ -114,14 +126,21 @@
           </div>
         </div>
 
-        <div class="card">
+        <div class="card no-print holiday-card" id="holidayCard">
           <div class="card-head">
-          <div class="card-title">Ferien-Übersicht</div>
-            <div class="chip" id="holidayStatus">—</div>
+            <div class="card-title">Ferien</div>
+            <div class="holiday-head-right">
+              <div class="seg" role="group" aria-label="Ferien-Referenz">
+                <button class="seg-btn" id="btnStateBE" type="button" data-state="BE">Berlin</button>
+                <button class="seg-btn" id="btnStateBB" type="button" data-state="BB">Brandenburg</button>
+              </div>
+              <div class="chip" id="holidayStatus">—</div>
+              <button class="icon-btn tiny" id="btnToggleHolidays" type="button" aria-label="Ferien einklappen/ausklappen" title="Ferien einklappen/ausklappen">▾</button>
+            </div>
           </div>
 
-          <div class="section">
-            <div class="hint">Die Ferien dienen nur zur groben Orientierung – sie beeinflussen den Plan nicht automatisch.</div>
+          <div class="section" id="holidayBody">
+            <div class="hint">Nur Orientierung – beeinflusst den Plan nicht automatisch.</div>
             <div class="list" id="holidayList"></div>
             <div class="hint" id="holidayHint"></div>
           </div>
@@ -129,6 +148,28 @@
       </section>
     </main>
   </div>
+
+  <!-- Help Modal -->
+  <dialog class="modal" id="helpDialog">
+    <form method="dialog" class="modal-box">
+      <div class="modal-title">So funktioniert’s</div>
+      <div class="hint" style="margin-top:10px">
+        <ul class="help-list">
+          <li><b>Module anlegen:</b> Lehrkräfte, Fächer (mit Farbe) und Sonderveranstaltungen links über <b>＋</b>.</li>
+          <li><b>Schnell einfügen:</b> Fach/Sonder antippen → dann ein Feld im Plan antippen. <b>Esc</b> bricht ab.</li>
+          <li><b>Desktop:</b> Module per Drag&Drop in ein Feld ziehen.</li>
+          <li><b>Bearbeiten:</b> Klick aufs Feld öffnet den Editor. Doppelklick setzt sofort <b>leer</b>.</li>
+          <li><b>Ganzer Tag:</b> Im Editor zusätzliche Blöcke per Checkbox wählen → Speichern.</li>
+          <li><b>Freitext:</b> Notizen unten werden mitgedruckt, wenn gefüllt.</li>
+          <li><b>Export/Import:</b> Backup als JSON sichern oder wieder einlesen.</li>
+          <li><b>Ferien:</b> Nur Berlin/Brandenburg als grobe Referenz, ohne Einfluss auf den Plan.</li>
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" value="ok">OK</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- Teacher Modal -->
   <dialog class="modal" id="teacherDialog">

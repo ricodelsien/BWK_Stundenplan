@@ -147,7 +147,7 @@ body.sidebar-collapsed .sidebar{ display: none; }
 
 .grid{
   display: grid;
-  grid-template-columns: 1.25fr .75fr;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
   gap: 14px;
   align-items: start;
 }
@@ -159,6 +159,10 @@ body.sidebar-collapsed .sidebar{ display: none; }
   box-shadow: var(--shadow);
   overflow: clip;
 }
+
+.holiday-card .section{ padding: 10px 12px; }
+.holiday-card .list{ gap: 7px; }
+.holiday-card .item{ padding: 9px 9px; }
 
 .card-head{
   padding: 12px 14px;
@@ -203,6 +207,13 @@ body.sidebar-collapsed .sidebar{ display: none; }
   background: rgba(255,255,255,.06);
   cursor: pointer;
 }
+
+.icon-btn.tiny{
+  height: 32px;
+  min-width: 32px;
+  padding: 0 10px;
+  font-size: 16px;
+}
 .icon-btn:hover{ background: rgba(255,255,255,.09); }
 .icon-btn:active{ transform: translateY(1px); }
 
@@ -220,19 +231,27 @@ body.sidebar-collapsed .sidebar{ display: none; }
   cursor: pointer;
 }
 
+.summary-actions{
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 details > summary.section-title{ list-style: none; }
 details > summary.section-title::-webkit-details-marker{ display: none; }
-details > summary.section-title::after{ content: "▾"; opacity: .7; margin-left: auto; }
+details > summary.section-title::after{ content: "▾"; opacity: .7; margin-left: 6px; }
 details[open] > summary.section-title::after{ content: "▴"; }
 
 .count{
-  margin-left: auto;
   font-size: 12px;
   padding: 2px 8px;
   border-radius: 999px;
   border: 1px solid var(--soft2);
   opacity: .8;
 }
+
+.summary-actions .count{ margin-left: 0; }
 
 .list{
   display: flex;
@@ -283,6 +302,44 @@ details[open] > summary.section-title::after{ content: "▴"; }
   background: rgba(255,255,255,.04);
   opacity: .95;
 }
+
+/* Holiday header controls */
+.holiday-head-right{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.seg{
+  display: inline-flex;
+  border: 1px solid var(--soft2);
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255,255,255,.03);
+}
+
+.seg-btn{
+  height: 32px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 720;
+  font-size: 13px;
+  opacity: .85;
+}
+
+.seg-btn.active{
+  background: rgba(140,200,255,.18);
+  opacity: 1;
+}
+
+.seg-btn:focus-visible{ outline: 3px solid rgba(140,200,255,.22); outline-offset: -3px; }
+
+.help-list{ margin: 10px 0 0; padding-left: 18px; }
+.help-list li{ margin: 8px 0; }
 
 .token{
   display: inline-flex;

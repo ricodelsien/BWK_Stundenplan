@@ -11,7 +11,7 @@
 
   const STORAGE_KEY = 'bwk_stundenplan_v1';
   const HOLIDAY_CACHE_KEY = 'bwk_stundenplan_holiday_cache_v1';
-  const APP_VERSION = '0.2';
+  const APP_VERSION = '0.3';
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -28,6 +28,7 @@
 
   let saveTimer = null;
   let holidayCache = loadHolidayCache();
+  let lastHolidayRenderKey = '';
 
   let entryTeacherTouched = false;
 
@@ -49,6 +50,8 @@
     { code: 'SH', name: 'Schleswig-Holstein' },
     { code: 'TH', name: 'Thüringen' },
   ];
+
+  const HOLIDAY_STATE_CODES = ['BE', 'BB'];
 
   const HOLIDAY_NAME_MAP = {
     winterferien: 'Winterferien',
@@ -299,17 +302,6 @@
 
   // ---- DOM: populate selects ----
 
-  function fillStateSelect(){
-    const sel = $('#stateSelect');
-    sel.innerHTML = '';
-    for(const s of STATE_OPTIONS){
-      const opt = document.createElement('option');
-      opt.value = s.code;
-      opt.textContent = s.name;
-      sel.appendChild(opt);
-    }
-  }
-
   function fillWeekSelect(){
     const sel = $('#weekSelect');
     const maxWeeks = weeksInIsoYear(view.isoYear);
@@ -376,14 +368,27 @@
     renderTop();
     renderSidebar();
     renderTimetable();
-    renderHolidays();
+    const hKey = `${view.stateCode}|${view.isoYear}|${view.isoWeek}`;
+    if(hKey !== lastHolidayRenderKey){
+      lastHolidayRenderKey = hKey;
+      renderHolidays();
+    }
     updatePlacementUI();
     syncWeekNotesUI();
   }
 
   function renderTop(){
     $('#yearInput').value = String(view.isoYear);
-    $('#stateSelect').value = view.stateCode;
+
+    // holiday reference buttons (BE/BB)
+    const beBtn = $('#btnStateBE');
+    const bbBtn = $('#btnStateBB');
+    if(beBtn && bbBtn){
+      beBtn.classList.toggle('active', view.stateCode === 'BE');
+      bbBtn.classList.toggle('active', view.stateCode === 'BB');
+    }
+
+    syncHolidayCollapseUI();
 
     const wd = getWeekDates(view.isoYear, view.isoWeek);
     $('#weekRangeLabel').textContent = `${formatRange(new Date(wd.start), new Date(wd.end))}`;
@@ -1016,6 +1021,29 @@
 
   // ---- Holidays ----
 
+  function normalizeHolidayState(){
+    if(!HOLIDAY_STATE_CODES.includes(view.stateCode)) view.stateCode = 'BE';
+    data.settings.stateCode = view.stateCode;
+  }
+
+  function setHolidayState(code){
+    if(!HOLIDAY_STATE_CODES.includes(code)) code = 'BE';
+    view.stateCode = code;
+    data.settings.stateCode = code;
+    saveData(true);
+    renderTop();
+    renderHolidays();
+  }
+
+  function syncHolidayCollapseUI(){
+    const body = $('#holidayBody');
+    const btn = $('#btnToggleHolidays');
+    if(!body || !btn) return;
+    const collapsed = !!data.settings.holidaysCollapsed;
+    body.style.display = collapsed ? 'none' : 'block';
+    btn.textContent = collapsed ? '▸' : '▾';
+  }
+
   async function renderHolidays(){
     const list = $('#holidayList');
     const status = $('#holidayStatus');
@@ -1043,7 +1071,7 @@
       const holidays = Array.from(bySlug.values()).sort((a,b) => a.startDate - b.startDate);
 
       const overlapping = holidays.filter(h => rangesOverlap(h.startDate, h.endDate, weekStart, weekEnd));
-      const upcoming = holidays.filter(h => h.startDate > weekEnd).slice(0, 8);
+      const upcoming = holidays.filter(h => h.startDate > weekEnd).slice(0, 4);
 
       status.textContent = overlapping.length ? `${overlapping.length} in dieser Woche` : 'keine in dieser Woche';
 
@@ -1111,11 +1139,8 @@
     view.isoWeek = iso.isoWeek;
 
     view.stateCode = data.settings.stateCode || 'BE';
+    normalizeHolidayState();
 
-    // init selects
-    fillStateSelect();
-
-    $('#stateSelect').value = view.stateCode;
     $('#yearInput').value = String(view.isoYear);
 
     fillWeekSelect();
@@ -1125,6 +1150,10 @@
 
     $('#btnPrevWeek').addEventListener('click', () => shiftWeek(-1));
     $('#btnNextWeek').addEventListener('click', () => shiftWeek(1));
+
+    $('#btnToday').addEventListener('click', goToToday);
+    $('#btnHelp').addEventListener('click', () => $('#helpDialog')?.showModal());
+    $('#btnReload').addEventListener('click', () => location.reload());
 
     $('#yearInput').addEventListener('change', () => {
       view.isoYear = clamp(Number($('#yearInput').value || 2026), 2026, 2099);
@@ -1138,16 +1167,18 @@
       renderAll();
     });
 
-    $('#stateSelect').addEventListener('change', () => {
-      view.stateCode = $('#stateSelect').value;
-      data.settings.stateCode = view.stateCode;
+    // holiday reference (Berlin/Brandenburg)
+    $('#btnStateBE').addEventListener('click', () => setHolidayState('BE'));
+    $('#btnStateBB').addEventListener('click', () => setHolidayState('BB'));
+    $('#btnToggleHolidays').addEventListener('click', () => {
+      data.settings.holidaysCollapsed = !data.settings.holidaysCollapsed;
       saveData(true);
-      renderAll();
+      syncHolidayCollapseUI();
     });
 
-    $('#btnAddTeacher').addEventListener('click', () => openTeacherDialog());
-    $('#btnAddSubject').addEventListener('click', () => openSubjectDialog());
-    $('#btnAddSpecial').addEventListener('click', () => openSpecialDialog());
+    $('#btnAddTeacher').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openTeacherDialog(); });
+    $('#btnAddSubject').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openSubjectDialog(); });
+    $('#btnAddSpecial').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openSpecialDialog(); });
 
     $('#btnSettings').addEventListener('click', openSettingsDialog);
 
@@ -1251,6 +1282,18 @@
     fillWeekSelect();
 
     renderAll();
+  }
+
+  function goToToday(){
+    const now = new Date();
+    const iso = getIsoWeekYear(now);
+    view.isoYear = clamp(Math.max(2026, iso.isoYear), 2026, 2099);
+    view.isoWeek = clamp(iso.isoWeek, 1, weeksInIsoYear(view.isoYear));
+
+    $('#yearInput').value = String(view.isoYear);
+    fillWeekSelect();
+    renderAll();
+    toast('Zur aktuellen Woche');
   }
 
   function saveSettings(){
@@ -1561,7 +1604,7 @@
 
     // sync view
     view.stateCode = data.settings.stateCode || view.stateCode;
-    $('#stateSelect').value = view.stateCode;
+    normalizeHolidayState();
 
     saveData(true);
     renderAll();
