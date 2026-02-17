@@ -11,7 +11,8 @@
 
   const STORAGE_KEY = 'bwk_stundenplan_v1';
   const HOLIDAY_CACHE_KEY = 'bwk_stundenplan_holiday_cache_v1';
-  const APP_VERSION = '0.3';
+  const PUBLIC_HOLIDAY_CACHE_KEY = 'bwk_stundenplan_public_holiday_cache_v1';
+  const APP_VERSION = '0.6';
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -28,7 +29,36 @@
 
   let saveTimer = null;
   let holidayCache = loadHolidayCache();
+  let publicHolidayCache = loadPublicHolidayCache();
   let lastHolidayRenderKey = '';
+
+  let weekDayISO = ['','','','',''];
+
+  // Berlin legal holidays (dateISO -> name)
+  let berlinHolidayMap = new Map();
+  let lastBerlinHolidayKey = '';
+
+  // Accent palette (background tint + focus/highlights)
+  // - dark: deeper, muted tones
+  // - light: pastel variants with enough contrast
+  const ACCENT_PRESETS = {
+    blue:   { dark: '#5c7da8', light: '#7fa2cc' },
+    green:  { dark: '#5b8f76', light: '#86b7a2' },
+    wine:   { dark: '#8a4a5b', light: '#c08b97' },
+    violet: { dark: '#6f5a8e', light: '#a99bc4' },
+    brown:  { dark: '#7a6455', light: '#b7a69a' },
+    mustard:{ dark: '#8a7a42', light: '#c2b26a' },
+  };
+
+  function isLightTheme(){
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  }
+
+  function accentHexFor(key){
+    const k = (key && ACCENT_PRESETS[key]) ? key : 'blue';
+    const preset = ACCENT_PRESETS[k] || ACCENT_PRESETS.blue;
+    return isLightTheme() ? preset.light : preset.dark;
+  }
 
   let entryTeacherTouched = false;
 
@@ -123,6 +153,24 @@
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
+  function hexToRgbParts(hex){
+    if(!hex || typeof hex !== 'string') return { r: 106, g: 166, b: 255 };
+    let h = hex.trim();
+    if(h.startsWith('#')) h = h.slice(1);
+    if(h.length === 3) h = h.split('').map(ch => ch+ch).join('');
+    const num = parseInt(h, 16);
+    if(Number.isNaN(num)) return { r: 106, g: 166, b: 255 };
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+
+  function applyAccent(){
+    const key = (data?.settings?.accentKey && ACCENT_PRESETS[data.settings.accentKey]) ? data.settings.accentKey : 'blue';
+    const hex = accentHexFor(key);
+    const { r, g, b } = hexToRgbParts(hex);
+    document.documentElement.style.setProperty('--accent', hex);
+    document.documentElement.style.setProperty('--accent-rgb', `${r},${g},${b}`);
+  }
+
   // ---- ISO week helpers (UTC-based) ----
 
   function getIsoWeekYear(date){
@@ -179,6 +227,7 @@
       settings: {
         stateCode: 'BE',
         slotLabels: ['Block 1', 'Block 2', 'Block 3', 'Block 4'],
+        accentKey: 'blue',
       },
       teachers: [],
       subjects: [],
@@ -203,6 +252,11 @@
     if(!Array.isArray(out.settings.slotLabels)) out.settings.slotLabels = base.settings.slotLabels.slice();
     out.settings.slotLabels = out.settings.slotLabels.slice(0,4);
     while(out.settings.slotLabels.length < 4) out.settings.slotLabels.push(base.settings.slotLabels[out.settings.slotLabels.length]);
+
+    // accent
+    if(!out.settings.accentKey || !ACCENT_PRESETS[out.settings.accentKey]){
+      out.settings.accentKey = base.settings.accentKey;
+    }
 
     // ensure unique ids
     out.teachers = out.teachers.filter(t => t && t.id && t.name);
@@ -268,6 +322,74 @@
     try{
       localStorage.setItem(HOLIDAY_CACHE_KEY, JSON.stringify(holidayCache));
     }catch{ /* ignore */ }
+  }
+
+  // ---- Public holiday cache (Berlin) ----
+
+  function loadPublicHolidayCache(){
+    const raw = localStorage.getItem(PUBLIC_HOLIDAY_CACHE_KEY);
+    const parsed = raw ? safeJsonParse(raw) : null;
+    if(!parsed || typeof parsed !== 'object') return {};
+    return parsed;
+  }
+
+  function savePublicHolidayCache(){
+    try{
+      localStorage.setItem(PUBLIC_HOLIDAY_CACHE_KEY, JSON.stringify(publicHolidayCache));
+    }catch{ /* ignore */ }
+  }
+
+  async function fetchBerlinPublicHolidays(year){
+    const cacheKey = `BE-${year}`;
+    const cached = publicHolidayCache[cacheKey];
+    if(cached && Array.isArray(cached.items) && cached.fetchedAt){
+      return cached.items;
+    }
+
+    let items = [];
+
+    // 1) Feiertage-API: object keyed by holiday name.
+    try{
+      const url = `https://feiertage-api.de/api/?jahr=${encodeURIComponent(year)}&nur_land=BE`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if(res.ok){
+        const json = await res.json();
+        if(json && typeof json === 'object'){
+          for(const [name, info] of Object.entries(json)){
+            const date = info && typeof info.datum === 'string' ? info.datum : null;
+            if(!date) continue;
+            items.push({ date, name });
+          }
+        }
+      }
+    }catch{ /* ignore */ }
+
+    // 2) Fallback: Nager.Date (nationwide + DE-BE)
+    if(!items.length){
+      const url = `https://date.nager.at/api/v3/PublicHolidays/${encodeURIComponent(year)}/DE`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if(!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if(Array.isArray(json)){
+        for(const h of json){
+          const date = typeof h?.date === 'string' ? h.date : null;
+          if(!date) continue;
+          const counties = Array.isArray(h?.counties) ? h.counties : null;
+          const appliesToBerlin = !counties || counties.includes('DE-BE');
+          if(!appliesToBerlin) continue;
+          const name = (typeof h?.localName === 'string' && h.localName.trim()) ? h.localName : (h?.name || 'Feiertag');
+          items.push({ date, name });
+        }
+      }
+    }
+
+    publicHolidayCache[cacheKey] = { fetchedAt: new Date().toISOString(), items };
+    savePublicHolidayCache();
+    return items;
+  }
+
+  function toISODate(d){
+    return new Date(d).toISOString().slice(0,10);
   }
 
   async function fetchHolidays(stateCode, year){
@@ -368,6 +490,10 @@
     renderTop();
     renderSidebar();
     renderTimetable();
+
+    // Berlin legal holidays (async) – updates timetable when loaded
+    ensureBerlinHolidayMap();
+
     const hKey = `${view.stateCode}|${view.isoYear}|${view.isoWeek}`;
     if(hKey !== lastHolidayRenderKey){
       lastHolidayRenderKey = hKey;
@@ -401,7 +527,7 @@
     const stateName = STATE_OPTIONS.find(s => s.code === view.stateCode)?.name || view.stateCode;
     $('#planState').textContent = `Ferien-Referenz: ${stateName}`;
 
-    $('#appInfo').textContent = `Version ${APP_VERSION} · lokal im Browser gespeichert`;
+    $('#appInfo').textContent = `Version ${APP_VERSION} · Nico Siedler · lokal im Browser gespeichert`;
   }
 
   function renderSidebar(){
@@ -419,8 +545,9 @@
       for(const t of data.teachers){
         const row = document.createElement('div');
         row.className = 'item';
+        const accent = accentHexFor(data.settings.accentKey);
         row.innerHTML = `
-          <div class="dot" style="background:${hexToRgba('#6aa6ff', .35)}"></div>
+          <div class="dot" style="background:${hexToRgba(accent, .35)}"></div>
           <div class="item-main">
             <div class="item-title"></div>
             <div class="item-sub"></div>
@@ -632,6 +759,7 @@
     el.innerHTML = '';
 
     const wd = getWeekDates(view.isoYear, view.isoWeek);
+    weekDayISO = wd.days.map(toISODate);
 
     // header row
     const corner = document.createElement('div');
@@ -644,7 +772,16 @@
       const d = new Date(wd.days[i]);
       const hd = document.createElement('div');
       hd.className = 'tt-head';
-      hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateShort(d)}</span>`;
+
+      const day = i+1;
+      const holidayName = getBerlinHolidayNameForDay(day);
+      if(holidayName){
+        hd.classList.add('is-holiday');
+        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateShort(d)}</span><span class="holiday-badge">${escapeHtml(holidayName)}</span>`;
+        hd.title = holidayName;
+      } else {
+        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateShort(d)}</span>`;
+      }
       el.appendChild(hd);
     }
 
@@ -663,6 +800,14 @@
         cell.dataset.day = String(day);
         cell.dataset.slot = String(slot);
 
+        const holidayName = getBerlinHolidayNameForDay(day);
+        if(holidayName){
+          cell.classList.add('is-holiday');
+          cell.dataset.holiday = '1';
+          cell.dataset.holidayName = holidayName;
+          cell.title = holidayName;
+        }
+
         const entry = getEntry(day, slot);
         cell.innerHTML = renderCellHTML(entry);
 
@@ -671,6 +816,10 @@
           ev.preventDefault();
           const d = Number(cell.dataset.day);
           const s = Number(cell.dataset.slot);
+          if(cell.dataset.holiday === '1'){
+            toast(`Feiertag (Berlin): ${cell.dataset.holidayName || 'Planung gesperrt'}`);
+            return;
+          }
           if(view.placement){
             applyPlacementToCell(d, s);
           } else {
@@ -681,16 +830,28 @@
         // dblclick -> clear
         cell.addEventListener('dblclick', (ev) => {
           ev.preventDefault();
+          if(cell.dataset.holiday === '1'){
+            toast('Feiertag – Feld kann nicht geleert werden.');
+            return;
+          }
           setEntry(Number(cell.dataset.day), Number(cell.dataset.slot), null);
         });
 
         // drag over/drop
         cell.addEventListener('dragover', (e) => {
           e.preventDefault();
+          if(cell.dataset.holiday === '1'){
+            e.dataTransfer.dropEffect = 'none';
+            return;
+          }
           e.dataTransfer.dropEffect = 'copy';
         });
         cell.addEventListener('drop', (e) => {
           e.preventDefault();
+          if(cell.dataset.holiday === '1'){
+            toast('Feiertag – Planung gesperrt.');
+            return;
+          }
           const txt = e.dataTransfer.getData('text/plain');
           const payload = safeJsonParse(txt);
           if(payload && (payload.type === 'subject' || payload.type === 'special') && payload.id){
@@ -817,6 +978,10 @@
   }
 
   function applyPlacementToCell(day, slot, keepPlacement=false){
+    if(isBerlinHolidayDay(day)){
+      toast(`Feiertag (Berlin): ${getBerlinHolidayNameForDay(day) || 'Planung gesperrt'}`);
+      return;
+    }
     const p = view.placement;
     if(!p) return;
 
@@ -899,6 +1064,10 @@
   // ---- Dialog: Entry (cell editor) ----
 
   function openEntryDialog(day, slot){
+    if(isBerlinHolidayDay(day)){
+      toast(`Feiertag (Berlin): ${getBerlinHolidayNameForDay(day) || 'Planung gesperrt'}`);
+      return;
+    }
     const dlg = $('#entryDialog');
     const entry = getEntry(day, slot);
 
@@ -1016,6 +1185,11 @@
     $('#slot2').value = labels[1] || '';
     $('#slot3').value = labels[2] || '';
     $('#slot4').value = labels[3] || '';
+
+    const acc = $('#accentSelect');
+    if(acc){
+      acc.value = data.settings.accentKey || 'blue';
+    }
     dlg.showModal();
   }
 
@@ -1042,6 +1216,39 @@
     const collapsed = !!data.settings.holidaysCollapsed;
     body.style.display = collapsed ? 'none' : 'block';
     btn.textContent = collapsed ? '▸' : '▾';
+  }
+
+  async function ensureBerlinHolidayMap(){
+    // fetch for all years that appear in the currently visible week
+    const wd = getWeekDates(view.isoYear, view.isoWeek);
+    const years = Array.from(new Set(wd.days.map(d => new Date(d).getUTCFullYear()))).sort((a,b) => a-b);
+    const key = years.join(',');
+    if(key === lastBerlinHolidayKey) return;
+    lastBerlinHolidayKey = key;
+
+    try{
+      const sets = await Promise.all(years.map(y => fetchBerlinPublicHolidays(y).catch(() => [])));
+      const map = new Map();
+      for(const it of sets.flat()){
+        if(it && it.date) map.set(it.date, it.name || 'Feiertag');
+      }
+      berlinHolidayMap = map;
+    }catch{
+      berlinHolidayMap = new Map();
+    }
+
+    // re-render to apply day locks (if data arrived after first paint)
+    renderTimetable();
+  }
+
+  function getBerlinHolidayNameForDay(day){
+    const iso = weekDayISO[day-1];
+    if(!iso) return '';
+    return berlinHolidayMap.get(iso) || '';
+  }
+
+  function isBerlinHolidayDay(day){
+    return !!getBerlinHolidayNameForDay(day);
   }
 
   async function renderHolidays(){
@@ -1112,13 +1319,14 @@
   function renderHolidayRow(h, highlight){
     const el = document.createElement('div');
     el.className = 'item';
-    if(highlight) el.style.borderColor = 'rgba(140,200,255,.55)';
+    const accent = accentHexFor(data.settings.accentKey);
+    if(highlight) el.style.borderColor = hexToRgba(accent, .55);
 
     const name = prettyHolidayName(h.name);
     const range = `${formatDateShort(h.startDate)}–${formatDateShort(h.endDate)}`;
 
     el.innerHTML = `
-      <div class="dot" style="background:${hexToRgba('#6aa6ff', .25)}"></div>
+      <div class="dot" style="background:${hexToRgba(accent, .25)}"></div>
       <div class="item-main">
         <div class="item-title">${escapeHtml(name)}</div>
         <div class="item-sub"><span class="pill">${escapeHtml(range)}</span><span class="pill">${escapeHtml(h.stateCode || view.stateCode)}</span></div>
@@ -1131,6 +1339,15 @@
 
   function init(){
     data = loadData();
+
+    applyAccent();
+
+    // Keep accent in sync if the OS theme changes while the app is open
+    try{
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+        applyAccent();
+      });
+    } catch {}
 
     // default view week/year
     const now = new Date();
@@ -1147,6 +1364,10 @@
 
     // listeners
     $('#btnToggleSidebar').addEventListener('click', toggleSidebar);
+
+    // right pane (holidays) hide/show
+    $('#btnToggleHolidayPane').addEventListener('click', toggleHolidayPane);
+    $('#btnHolidayTab').addEventListener('click', () => setHolidayPaneHidden(false));
 
     $('#btnPrevWeek').addEventListener('click', () => shiftWeek(-1));
     $('#btnNextWeek').addEventListener('click', () => shiftWeek(1));
@@ -1174,6 +1395,14 @@
       data.settings.holidaysCollapsed = !data.settings.holidaysCollapsed;
       saveData(true);
       syncHolidayCollapseUI();
+    });
+
+    // "Abbrechen" buttons: close the nearest dialog (submit handlers won't swallow them)
+    $$('[data-cancel]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dlg = btn.closest('dialog');
+        if(dlg && typeof dlg.close === 'function') dlg.close('cancel');
+      });
     });
 
     $('#btnAddTeacher').addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); openTeacherDialog(); });
@@ -1248,7 +1477,34 @@
     // initial save info
     $('#saveInfo').textContent = data.updatedAt ? `Zuletzt gespeichert: ${new Date(data.updatedAt).toLocaleString('de-DE')}` : '—';
 
+    // initial holiday pane state
+    syncHolidayPaneUI();
+
     renderAll();
+  }
+
+  function setHolidayPaneHidden(hidden){
+    data.settings.holidaysPaneHidden = !!hidden;
+    saveData(true);
+    syncHolidayPaneUI();
+  }
+
+  function toggleHolidayPane(){
+    setHolidayPaneHidden(!data.settings.holidaysPaneHidden);
+  }
+
+  function syncHolidayPaneUI(){
+    const hidden = !!data?.settings?.holidaysPaneHidden;
+    document.body.classList.toggle('holidays-hidden', hidden);
+    const tab = $('#btnHolidayTab');
+    if(tab) tab.style.display = hidden ? 'inline-flex' : 'none';
+    // keep the top button visually consistent
+    const btn = $('#btnToggleHolidayPane');
+    if(btn){
+      btn.classList.toggle('is-off', hidden);
+      btn.title = hidden ? 'Ferien anzeigen' : 'Ferien ausblenden';
+      btn.setAttribute('aria-label', hidden ? 'Ferien anzeigen' : 'Ferien ausblenden');
+    }
   }
 
   function toggleSidebar(){
@@ -1518,6 +1774,11 @@
       $('#slot3').value.trim() || 'Block 3',
       $('#slot4').value.trim() || 'Block 4',
     ];
+
+    const acc = $('#accentSelect')?.value;
+    if(acc && ACCENT_PRESETS[acc]) data.settings.accentKey = acc;
+    applyAccent();
+
     $('#settingsDialog').close();
     saveData(true);
     renderTimetable();

@@ -30,6 +30,8 @@
         <button class="btn ghost" id="btnToday" title="Zur aktuellen Woche springen">Heute</button>
       </div>
 
+      <button class="icon-btn" id="btnToggleHolidayPane" aria-label="Ferienbereich ein/ausblenden" title="Ferien ein/ausblenden">🗓️</button>
+
       <button class="btn" id="btnPrint">🖨️ Drucken</button>
 
       <button class="icon-btn" id="btnHelp" aria-label="Hilfe" title="Hilfe">?</button>
@@ -149,6 +151,9 @@
     </main>
   </div>
 
+  <!-- Small tab to reopen holiday pane when hidden -->
+  <button class="holiday-tab no-print" id="btnHolidayTab" type="button" aria-label="Ferien anzeigen" title="Ferien anzeigen">Ferien</button>
+
   <!-- Help Modal -->
   <dialog class="modal" id="helpDialog">
     <form method="dialog" class="modal-box">
@@ -163,6 +168,7 @@
           <li><b>Freitext:</b> Notizen unten werden mitgedruckt, wenn gefüllt.</li>
           <li><b>Export/Import:</b> Backup als JSON sichern oder wieder einlesen.</li>
           <li><b>Ferien:</b> Nur Berlin/Brandenburg als grobe Referenz, ohne Einfluss auf den Plan.</li>
+          <li><b>Feiertage (Berlin):</b> Gesetzliche Feiertage werden markiert – Planung ist an diesen Tagen gesperrt (wenn online abrufbar).</li>
         </ul>
       </div>
       <div class="modal-actions">
@@ -187,7 +193,7 @@
       </label>
 
       <div class="modal-actions">
-        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn ghost" type="button" data-cancel>Abbrechen</button>
         <button class="btn danger" id="teacherDeleteBtn" type="button">Löschen</button>
         <button class="btn" id="teacherSubmit" value="ok">Speichern</button>
       </div>
@@ -218,7 +224,7 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn ghost" type="button" data-cancel>Abbrechen</button>
         <button class="btn danger" id="subjectDeleteBtn" type="button">Löschen</button>
         <button class="btn" id="subjectSubmit" value="ok">Speichern</button>
       </div>
@@ -243,7 +249,7 @@
       </label>
 
       <div class="modal-actions">
-        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn ghost" type="button" data-cancel>Abbrechen</button>
         <button class="btn danger" id="specialDeleteBtn" type="button">Löschen</button>
         <button class="btn" id="specialSubmit" value="ok">Speichern</button>
       </div>
@@ -301,7 +307,7 @@
       </div>
 
       <div class="modal-actions">
-        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn ghost" type="button" data-cancel>Abbrechen</button>
         <button class="btn danger" id="entryDeleteBtn" type="button">Löschen</button>
         <button class="btn" id="entrySubmit" value="ok">Speichern</button>
       </div>
@@ -339,8 +345,26 @@
         </label>
       </div>
 
+      <div class="row">
+        <label class="field">
+          <span>Akzent (gedeckt)</span>
+          <select id="accentSelect" aria-label="Akzentfarbe wählen">
+            <option value="blue">Blau</option>
+            <option value="green">Grün</option>
+            <option value="wine">Weinrot</option>
+            <option value="violet">Violett</option>
+            <option value="brown">Braun</option>
+            <option value="mustard">Senfgelb</option>
+          </select>
+        </label>
+        <div class="field">
+          <span>Hinweis</span>
+          <div class="hint" style="margin-top:0">Der Akzent beeinflusst Fokus/Highlights (nicht die Fachfarben).</div>
+        </div>
+      </div>
+
       <div class="modal-actions">
-        <button class="btn ghost" value="cancel">Abbrechen</button>
+        <button class="btn ghost" type="button" data-cancel>Abbrechen</button>
         <button class="btn" id="settingsSubmit" value="ok">Speichern</button>
       </div>
     </form>
