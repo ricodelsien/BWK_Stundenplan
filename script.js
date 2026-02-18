@@ -1354,7 +1354,6 @@
 
     // right pane (holidays) hide/show
     $('#btnToggleHolidayPane').addEventListener('click', toggleHolidayPane);
-    $('#btnHolidayTab').addEventListener('click', () => setHolidayPaneHidden(false));
 
     $('#btnPrevWeek').addEventListener('click', () => shiftWeek(-1));
     $('#btnNextWeek').addEventListener('click', () => shiftWeek(1));
@@ -1483,8 +1482,6 @@
   function syncHolidayPaneUI(){
     const hidden = !!data?.settings?.holidaysPaneHidden;
     document.body.classList.toggle('holidays-hidden', hidden);
-    const tab = $('#btnHolidayTab');
-    if(tab) tab.style.display = hidden ? 'inline-flex' : 'none';
     // keep the top button visually consistent
     const btn = $('#btnToggleHolidayPane');
     if(btn){

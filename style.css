@@ -232,26 +232,6 @@ body.holidays-hidden .holiday-card{
 }
 .holiday-card{ transition: opacity .18s ease, transform .18s ease; }
 
-.holiday-tab{
-  position: fixed;
-  right: 10px;
-  top: 78px;
-  height: 42px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--soft2);
-  background:
-    linear-gradient(180deg, rgba(var(--accent-rgb), .10), rgba(var(--accent-rgb), 0)),
-    var(--card-bg);
-  box-shadow: var(--shadow);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-weight: 720;
-  cursor: pointer;
-  z-index: 20;
-}
-
 .icon-btn.is-off{ opacity: .72; }
 
 .holiday-card .section{ padding: 10px 12px; }
@@ -395,6 +375,10 @@ details[open] > summary.section-title::after{ content: "▴"; }
   border-radius: 999px;
   padding: 2px 8px;
   background: var(--pill-bg);
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 
 .chip{
@@ -454,6 +438,14 @@ details[open] > summary.section-title::after{ content: "▴"; }
   background: var(--ctrl-bg);
   cursor: grab;
   user-select: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.token .item-title{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .token:active{ cursor: grabbing; }
 .token.armed{ outline: 3px solid var(--accent-outline); }
