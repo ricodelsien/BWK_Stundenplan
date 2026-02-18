@@ -17,25 +17,49 @@
     </div>
 
     <div class="top-actions">
+	
+		<div class="plan-switch" aria-label="Klasse auswählen">
+		  <small>Klasse:</small>
+          <select class="ctrl small" id="planSelect" aria-label="Klasse"></select>
+          <button class="icon-btn" id="btnAddPlan" title="Klasse hinzufügen" aria-label="Klasse hinzufügen">＋</button>
+          <button class="icon-btn" id="btnRenamePlan" title="Klasse umbenennen" aria-label="Klasse umbenennen">✎</button>
+          <button class="icon-btn danger" id="btnDeletePlan" title="Klasse entfernen" aria-label="Klasse entfernen">🗑</button>
+          <div class="plan-leader" title="Klassenleitung">
+            <small>Leitung:</small>
+            <select class="ctrl small" id="planLeaderSelect" aria-label="Klassenleitung auswählen"></select>
+          </div>
+        </div>
+		
+		<small>|</small>
+	
       <div class="controls" aria-label="Woche auswählen">
+		<small>Zeitraum:</small>
         <button class="icon-btn" id="btnPrevWeek" title="Vorherige Woche" aria-label="Vorherige Woche">◀</button>
 
-        <input class="ctrl small" id="yearInput" type="number" inputmode="numeric" min="2026" max="2099" step="1" aria-label="Jahr" />
+        <input class="ctrl small" id="yearInput" type="number" inputmode="numeric" min="2024" max="2099" step="1" aria-label="Jahr" />
         <select class="ctrl small" id="weekSelect" aria-label="Kalenderwoche"></select>
 
         <div class="week-range" id="weekRangeLabel">—</div>
 
         <button class="icon-btn" id="btnNextWeek" title="Nächste Woche" aria-label="Nächste Woche">▶</button>
+		
+		<small>|</small>
 
         <button class="btn ghost" id="btnToday" title="Zur aktuellen Woche springen">Heute</button>
       </div>
+	  
+	  <small>|</small>
 
-      <button class="icon-btn" id="btnToggleHolidayPane" aria-label="Ferienbereich ein/ausblenden" title="Ferien ein/ausblenden">🗓️</button>
+      <button class="icon-btn" id="btnToggleHolidayPane" aria-label="Ferienbereich ein/ausblenden" title="Ferien ein/ausblenden">⛱</button>
 
-      <button class="btn" id="btnPrint">🖨️ Drucken</button>
+	  <small>|</small>
+
+      <button class="btn" id="btnPrint">🖨️</button>
 
       <button class="icon-btn" id="btnHelp" aria-label="Hilfe" title="Hilfe">?</button>
       <button class="icon-btn" id="btnReload" aria-label="App neu laden" title="App neu laden">⟳</button>
+	  
+	  <small>|</small>
 
       <button class="icon-btn" id="btnSaveNow" aria-label="Jetzt lokal speichern" title="Jetzt lokal speichern">💾</button>
       <button class="icon-btn" id="btnExport" aria-label="Backup exportieren" title="Backup exportieren">⬇️</button>
@@ -133,9 +157,8 @@
             <div class="card-title">Ferien</div>
             <div class="holiday-head-right">
               <div class="seg" role="group" aria-label="Ferien-Referenz">
-                <button class="seg-btn" id="btnStateBE" type="button" data-state="BE">BER</button>
-                <button class="seg-btn" id="btnStateBB" type="button" data-state="BB">BRB</button>
-              </div>
+                <button class="seg-btn" id="btnStateBE" type="button" data-state="BE">Berlin</button>
+                              </div>
               <div class="chip" id="holidayStatus">—</div>
               <button class="icon-btn tiny" id="btnToggleHolidays" type="button" aria-label="Ferien einklappen/ausklappen" title="Ferien einklappen/ausklappen">▾</button>
             </div>
@@ -150,9 +173,6 @@
       </section>
     </main>
   </div>
-
-  <!-- Small tab to reopen holiday pane when hidden -->
-  <button class="holiday-tab no-print" id="btnHolidayTab" type="button" aria-label="Ferien anzeigen" title="Ferien anzeigen">Ferien</button>
 
   <!-- Help Modal -->
   <dialog class="modal" id="helpDialog">

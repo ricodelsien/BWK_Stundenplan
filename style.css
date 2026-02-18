@@ -146,6 +146,19 @@ button, input, select, textarea{ font: inherit; color: inherit; }
   flex-wrap: wrap;
 }
 
+.plan-switch{
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 4px;
+}
+
+#planSelect.ctrl.small{ width: 140px; }
+
+@media (max-width: 860px){
+  #planSelect.ctrl.small{ width: 120px; }
+}
+
 .ctrl{
   height: var(--tap);
   border-radius: 999px;
@@ -230,27 +243,15 @@ body.holidays-hidden .holiday-card{
   transform: translateX(40px);
   pointer-events: none;
 }
-.holiday-card{ transition: opacity .18s ease, transform .18s ease; }
 
-.holiday-tab{
-  position: fixed;
-  right: 10px;
-  top: 78px;
-  height: 42px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--soft2);
-  background:
-    linear-gradient(180deg, rgba(var(--accent-rgb), .10), rgba(var(--accent-rgb), 0)),
-    var(--card-bg);
-  box-shadow: var(--shadow);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  font-weight: 720;
-  cursor: pointer;
-  z-index: 20;
+body.holidays-hidden .app-grid{
+  grid-template-columns: minmax(0, 1fr) 0px;
+  gap: 0;
 }
+body.holidays-hidden #holidayCard{
+  display: none;
+}
+.holiday-card{ transition: opacity .18s ease, transform .18s ease; }
 
 .icon-btn.is-off{ opacity: .72; }
 
@@ -310,6 +311,14 @@ body.holidays-hidden .holiday-card{
   align-items: center;
   justify-content: center;
 }
+
+.icon-btn.danger{
+  border-color: rgba(220, 70, 70, .35);
+}
+.icon-btn.danger:hover{
+  border-color: rgba(220, 70, 70, .55);
+}
+
 
 .icon-btn.tiny{
   height: 32px;
@@ -395,6 +404,10 @@ details[open] > summary.section-title::after{ content: "▴"; }
   border-radius: 999px;
   padding: 2px 8px;
   background: var(--pill-bg);
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 
 .chip{
@@ -454,6 +467,14 @@ details[open] > summary.section-title::after{ content: "▴"; }
   background: var(--ctrl-bg);
   cursor: grab;
   user-select: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.token .item-title{
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .token:active{ cursor: grabbing; }
 .token.armed{ outline: 3px solid var(--accent-outline); }
@@ -790,3 +811,15 @@ option{
 }
 
 @page{ size: A4 landscape; margin: 10mm; }
+
+
+/* Plan leader control */
+.plan-leader{display:flex;align-items:center;gap:8px;margin-left:10px;}
+.plan-leader .mini-label{opacity:.7;font-size:12px;white-space:nowrap;}
+@media (max-width: 980px){
+  .plan-leader{display:none;} /* keep topbar compact on small screens */
+}
+
+
+/* Ferienpanel: nur Berlin – Umschalter ausblenden */
+.holiday-head-right .seg{ display:none !important; }

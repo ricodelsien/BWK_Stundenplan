@@ -10,10 +10,10 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'bwk_stundenplan_v1';
+  const STORAGE_KEY = 'bwk_stundenplan_v2';
   const HOLIDAY_CACHE_KEY = 'bwk_stundenplan_holiday_cache_v1';
   const PUBLIC_HOLIDAY_CACHE_KEY = 'bwk_stundenplan_public_holiday_cache_v1';
-  const APP_VERSION = '0.6';
+  const APP_VERSION = '0.9';
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -21,7 +21,7 @@
   // ---- State ----
   let data = null;
   let view = {
-    isoYear: 2026,
+    isoYear: 2024,
     isoWeek: 1,
     stateCode: 'BE',
     placement: null, // {type:'subject'|'special', id}
@@ -31,6 +31,207 @@
   let saveTimer = null;
   let holidayCache = loadHolidayCache();
   let publicHolidayCache = loadPublicHolidayCache();
+  
+  // Embedded school holidays (Berlin) – offline/reference list
+  // Source: Senatsverwaltung für Bildung, Jugend und Familie (Berlin.de) – Ferienordnung 2024/2025 bis 2029/2030
+  const EMBEDDED_SCHOOL_HOLIDAYS_BE = {
+  "2024": [
+    {
+      "name": "Herbstferien",
+      "startDate": "2024-10-21",
+      "endDate": "2024-11-02"
+    },
+    {
+      "name": "Weihnachtsferien",
+      "startDate": "2024-12-23",
+      "endDate": "2024-12-31"
+    }
+  ],
+  "2025": [
+    {
+      "name": "Winterferien",
+      "startDate": "2025-02-03",
+      "endDate": "2025-02-08"
+    },
+    {
+      "name": "Osterferien",
+      "startDate": "2025-04-14",
+      "endDate": "2025-04-25"
+    },
+    {
+      "name": "Pfingstferien",
+      "startDate": "2025-06-10",
+      "endDate": "2025-06-10"
+    },
+    {
+      "name": "Sommerferien",
+      "startDate": "2025-07-24",
+      "endDate": "2025-09-06"
+    },
+    {
+      "name": "Herbstferien",
+      "startDate": "2025-10-20",
+      "endDate": "2025-11-01"
+    },
+    {
+      "name": "Weihnachtsferien",
+      "startDate": "2025-12-22",
+      "endDate": "2026-01-02"
+    }
+  ],
+  "2026": [
+    {
+      "name": "Winterferien",
+      "startDate": "2026-02-02",
+      "endDate": "2026-02-07"
+    },
+    {
+      "name": "Osterferien",
+      "startDate": "2026-03-30",
+      "endDate": "2026-04-10"
+    },
+    {
+      "name": "Pfingstferien",
+      "startDate": "2026-05-26",
+      "endDate": "2026-05-26"
+    },
+    {
+      "name": "Sommerferien",
+      "startDate": "2026-07-09",
+      "endDate": "2026-08-22"
+    },
+    {
+      "name": "Herbstferien",
+      "startDate": "2026-10-19",
+      "endDate": "2026-10-31"
+    },
+    {
+      "name": "Weihnachtsferien",
+      "startDate": "2026-12-23",
+      "endDate": "2027-01-02"
+    }
+  ],
+  "2027": [
+    {
+      "name": "Winterferien",
+      "startDate": "2027-02-01",
+      "endDate": "2027-02-06"
+    },
+    {
+      "name": "Osterferien",
+      "startDate": "2027-03-22",
+      "endDate": "2027-04-02"
+    },
+    {
+      "name": "Pfingstferien",
+      "startDate": "2027-05-18",
+      "endDate": "2027-05-18"
+    },
+    {
+      "name": "Sommerferien",
+      "startDate": "2027-07-01",
+      "endDate": "2027-08-14"
+    },
+    {
+      "name": "Herbstferien",
+      "startDate": "2027-10-11",
+      "endDate": "2027-10-23"
+    },
+    {
+      "name": "Weihnachtsferien",
+      "startDate": "2027-12-22",
+      "endDate": "2027-12-31"
+    }
+  ],
+  "2028": [
+    {
+      "name": "Winterferien",
+      "startDate": "2028-01-31",
+      "endDate": "2028-02-05"
+    },
+    {
+      "name": "Osterferien",
+      "startDate": "2028-04-10",
+      "endDate": "2028-04-22"
+    },
+    {
+      "name": "Pfingstferien",
+      "startDate": "2028-06-01",
+      "endDate": "2028-06-02"
+    },
+    {
+      "name": "Sommerferien",
+      "startDate": "2028-07-01",
+      "endDate": "2028-08-12"
+    },
+    {
+      "name": "Herbstferien",
+      "startDate": "2028-10-02",
+      "endDate": "2028-10-14"
+    },
+    {
+      "name": "Weihnachtsferien",
+      "startDate": "2028-12-22",
+      "endDate": "2029-01-02"
+    }
+  ],
+  "2029": [
+    {
+      "name": "Winterferien",
+      "startDate": "2029-01-29",
+      "endDate": "2029-02-03"
+    },
+    {
+      "name": "Osterferien",
+      "startDate": "2029-03-26",
+      "endDate": "2029-04-06"
+    },
+    {
+      "name": "Pfingstferien",
+      "startDate": "2029-05-22",
+      "endDate": "2029-05-22"
+    },
+    {
+      "name": "Sommerferien",
+      "startDate": "2029-07-01",
+      "endDate": "2029-08-11"
+    },
+    {
+      "name": "Herbstferien",
+      "startDate": "2029-10-01",
+      "endDate": "2029-10-12"
+    },
+    {
+      "name": "Weihnachtsferien",
+      "startDate": "2029-12-21",
+      "endDate": "2030-01-04"
+    }
+  ],
+  "2030": [
+    {
+      "name": "Winterferien",
+      "startDate": "2030-02-04",
+      "endDate": "2030-02-09"
+    },
+    {
+      "name": "Osterferien",
+      "startDate": "2030-04-15",
+      "endDate": "2030-04-26"
+    },
+    {
+      "name": "Pfingstferien",
+      "startDate": "2030-06-07",
+      "endDate": "2030-06-07"
+    },
+    {
+      "name": "Sommerferien",
+      "startDate": "2030-07-04",
+      "endDate": "2030-08-17"
+    }
+  ]
+};
+
+
   let lastHolidayRenderKey = '';
 
   let weekDayISO = ['','','','',''];
@@ -215,11 +416,14 @@
         stateCode: 'BE',
         slotLabels: ['Block 1', 'Block 2', 'Block 3', 'Block 4'],
         accentKey: 'blue',
+        activePlanId: '',
       },
+      plans: {}, // { [planId]: { id, name, leaderId, weeks: { [weekKey]: { cells, note } } } }
       teachers: [],
       subjects: [],
       specials: [],
-      weeks: {}, // { [weekKey]: { cells: { 'day-slot': entry }, note: string } }
+      // legacy single-plan storage (migrated into plans)
+      weeks: {},
     };
   }
 
@@ -230,6 +434,7 @@
       ...base,
       ...d,
       settings: { ...base.settings, ...(d.settings||{}) },
+      plans: (d.plans && typeof d.plans === 'object') ? d.plans : {},
       teachers: Array.isArray(d.teachers) ? d.teachers : [],
       subjects: Array.isArray(d.subjects) ? d.subjects : [],
       specials: Array.isArray(d.specials) ? d.specials : [],
@@ -250,22 +455,75 @@
     out.subjects = out.subjects.filter(s => s && s.id && s.name);
     out.specials = out.specials.filter(s => s && s.id && s.title);
 
-    // normalize weeks shape (older exports may only have {cells})
-    for(const [k, wk] of Object.entries(out.weeks || {})){
-      if(!wk || typeof wk !== 'object'){
-        out.weeks[k] = { cells: {}, note: '' };
+    // normalize plan storage + migrate legacy weeks
+    migratePlans(out);
+
+    
+    // normalize holiday state codes from older builds
+    if(out.settings && typeof out.settings.stateCode === 'string'){
+      const sc = out.settings.stateCode.toUpperCase();
+      if(sc === 'BER') out.settings.stateCode = 'BE';
+      if(sc === 'BRB') out.settings.stateCode = 'BB';
+    }
+return out;
+  }
+
+  function migratePlans(out){
+    // Ensure at least one plan exists.
+    const plansObj = (out.plans && typeof out.plans === 'object') ? out.plans : {};
+    out.plans = plansObj;
+
+    // Normalize existing plans
+    for(const [pid, p] of Object.entries(out.plans)){
+      if(!p || typeof p !== 'object'){
+        delete out.plans[pid];
         continue;
       }
-      if(!wk.cells || typeof wk.cells !== 'object') wk.cells = {};
-      if(typeof wk.note !== 'string') wk.note = '';
+      if(!p.id) p.id = pid;
+      if(!p.name) p.name = 'Klasse';
+      if(typeof p.leaderId !== 'string') p.leaderId = '';
+      if(!p.weeks || typeof p.weeks !== 'object') p.weeks = {};
+      // normalize weeks in each plan
+      for(const [k, wk] of Object.entries(p.weeks || {})){
+        if(!wk || typeof wk !== 'object'){
+          p.weeks[k] = { cells: {}, note: '' };
+          continue;
+        }
+        if(!wk.cells || typeof wk.cells !== 'object') wk.cells = {};
+        if(typeof wk.note !== 'string') wk.note = '';
+      }
     }
 
-    return out;
+    // If no plans yet, migrate legacy out.weeks into a default plan
+    const planIds = Object.keys(out.plans);
+    if(planIds.length === 0){
+      const pid = uid('plan');
+      out.plans[pid] = {
+        id: pid,
+        name: 'AVöD I',
+        weeks: (out.weeks && typeof out.weeks === 'object') ? out.weeks : {},
+      };
+      out.settings.activePlanId = pid;
+      out.weeks = {}; // keep empty after migration
+    }
+
+    // Pick active plan
+    if(!out.settings.activePlanId || !out.plans[out.settings.activePlanId]){
+      out.settings.activePlanId = Object.keys(out.plans)[0];
+    }
   }
 
   function loadData(){
     const raw = localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? safeJsonParse(raw) : null;
+    let parsed = raw ? safeJsonParse(raw) : null;
+    if(!parsed){
+      // migrate from older key if present
+      const legacyRaw = localStorage.getItem('bwk_stundenplan_v1');
+      const legacy = legacyRaw ? safeJsonParse(legacyRaw) : null;
+      if(legacy){
+        parsed = legacy;
+      }
+    }
     return normalizeData(parsed);
   }
 
@@ -380,25 +638,66 @@
   }
 
   async function fetchHolidays(stateCode, year){
+      // Offline fallback: embedded Berlin school holidays (2024–2030)
+    if(stateCode === 'BE'){
+      const embedded = EMBEDDED_SCHOOL_HOLIDAYS_BE[String(year)];
+      if(Array.isArray(embedded) && embedded.length){
+        return embedded.map(h => ({ ...h, type: 'SchoolHoliday', source: 'embedded' }));
+      }
+    }
+
     const cacheKey = `${stateCode}-${year}`;
     const cached = holidayCache[cacheKey];
     if(cached && Array.isArray(cached.items) && cached.fetchedAt){
       return cached.items;
     }
 
-    const url = `https://ferien-api.de/api/v1/holidays/${stateCode}/${year}`;
-    const res = await fetch(url, { cache: 'no-store' });
-    if(!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    if(!Array.isArray(json)) return [];
+    const subdivisionCode = stateCode === 'BE' ? 'DE-BE' : (stateCode === 'BB' ? 'DE-BB' : `DE-${stateCode}`);
+    const validFrom = `${year}-01-01`;
+    const validTo = `${year}-12-31`;
 
-    holidayCache[cacheKey] = { fetchedAt: new Date().toISOString(), items: json };
+    // Primary source: OpenHolidays API (school holidays)
+    try{
+      const urlOH = `https://openholidaysapi.org/SchoolHolidays?countryIsoCode=DE&subdivisionCode=${encodeURIComponent(subdivisionCode)}&languageIsoCode=DE&validFrom=${validFrom}&validTo=${validTo}`;
+      const res = await fetch(urlOH, { cache: 'no-store', headers: { 'accept': 'text/json' } });
+      if(res.ok){
+        const json = await res.json();
+        if(Array.isArray(json)){
+          const items = json.map((h) => {
+            const name =
+              (Array.isArray(h.name) ? (h.name.find(n => String(n.languageIsoCode||'').toUpperCase() === 'DE')?.text || h.name[0]?.text) : null) ||
+              h.name?.text || h.name || h.title || h.type || 'Ferien';
+            const startDate = String(h.startDate || h.validFrom || '').slice(0,10);
+            const endDate = String(h.endDate || h.validTo || '').slice(0,10);
+            const slug = h.id || `${subdivisionCode}-${startDate}-${endDate}-${name}`.toLowerCase().replace(/\s+/g,'-');
+            return { slug, name, startDate, endDate, source: 'openholidays' };
+          }).filter(x => x.startDate && x.endDate);
+
+          holidayCache[cacheKey] = { fetchedAt: new Date().toISOString(), items };
+          saveHolidayCache();
+          return items;
+        }
+      }
+    } catch(_e){ /* fallback below */ }
+
+    // Fallback: ferien-api.de (may fail on some setups due to CORS / file:// origin)
+    const url = `https://ferien-api.de/api/v1/holidays/${stateCode}/${year}`;
+    const res2 = await fetch(url, { cache: 'no-store' });
+    if(!res2.ok) throw new Error(`HTTP ${res2.status}`);
+    const json2 = await res2.json();
+    if(!Array.isArray(json2)) return [];
+
+    holidayCache[cacheKey] = { fetchedAt: new Date().toISOString(), items: json2 };
     saveHolidayCache();
-    return json;
+    return json2;
   }
 
   function holidayToRange(h){
-    // API returns UTC timestamps.
+    // Normalized OpenHolidays items already have startDate/endDate.
+    if(h && h.startDate && h.endDate){
+      return { ...h, startDate: String(h.startDate).slice(0,10), endDate: String(h.endDate).slice(0,10) };
+    }
+    // ferien-api.de returns UTC timestamps (start/end).
     const start = dateOnly(new Date(h.start));
     const end = dateOnly(new Date(h.end));
     return { ...h, startDate: start, endDate: end };
@@ -423,6 +722,129 @@
     }
     view.isoWeek = clamp(view.isoWeek, 1, maxWeeks);
     sel.value = String(view.isoWeek);
+  }
+
+  function fillPlanSelect(){
+    const sel = $('#planSelect');
+    if(!sel) return;
+    sel.innerHTML = '';
+    const plans = allPlans();
+    for(const p of plans){
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name || 'Klasse';
+      sel.appendChild(opt);
+    }
+    const active = data.settings.activePlanId;
+    if(active && data.plans[active]){
+      sel.value = active;
+    } else if(plans[0]){
+      sel.value = plans[0].id;
+      data.settings.activePlanId = plans[0].id;
+      saveData(true);
+    }
+  }
+
+  function fillPlanLeaderSelect(){
+    const sel = $('#planLeaderSelect');
+    if(!sel) return;
+    sel.innerHTML = '';
+
+    const optNone = document.createElement('option');
+    optNone.value = '';
+    optNone.textContent = '—';
+    sel.appendChild(optNone);
+
+    const teachers = (data.teachers || []).slice().sort((a,b) => (a.name||'').localeCompare(b.name||'', 'de'));
+    for(const t of teachers){
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = t.short ? `${t.name} (${t.short})` : t.name;
+      sel.appendChild(opt);
+    }
+
+    const plan = getActivePlan();
+    sel.value = plan?.leaderId || '';
+    sel.disabled = !plan;
+  }
+
+  function addPlan(){
+    const name = prompt('Name der Klasse (z. B. AVöD I):', 'AVöD II');
+    if(!name) return;
+    const pid = uid('plan');
+    data.plans[pid] = { id: pid, name: name.trim(), leaderId: '', weeks: {} };
+    data.settings.activePlanId = pid;
+    saveData(true);
+    fillPlanSelect();
+    renderAll();
+    toast('Klasse angelegt');
+  }
+
+  function renameActivePlan(){
+    const plan = getActivePlan();
+    if(!plan) return;
+    const name = prompt('Klasse umbenennen:', plan.name || 'Klasse');
+    if(!name) return;
+    plan.name = name.trim();
+    saveData(true);
+    fillPlanSelect();
+    renderAll();
+    toast('Klasse umbenannt');
+  }
+
+  function deleteActivePlan(){
+    const plan = getActivePlan();
+    if(!plan) return;
+    const planIds = Object.keys(data.plans || {});
+    const isLast = planIds.length <= 1;
+
+    const ok = confirm(isLast
+      ? `Die letzte Klasse kann nicht komplett entfernt werden.
+
+Möchtest du "${plan.name || 'Klasse'}" stattdessen zurücksetzen?
+
+Alle Einträge & Notizen dieser Klasse werden gelöscht und durch eine neue leere Klasse ersetzt.`
+      : `Klasse wirklich entfernen?
+
+"${plan.name || 'Klasse'}"
+
+Alle Einträge & Notizen dieser Klasse werden gelöscht.`
+    );
+    if(!ok) return;
+
+    if(isLast){
+      // reset by replacing with a fresh empty plan (keeps the "at least one class" rule)
+      const pid = uid('plan');
+      data.plans = {};
+      data.plans[pid] = { id: pid, name: 'Klasse', leaderId: '', weeks: {} };
+      data.settings.activePlanId = pid;
+      saveData(true);
+      fillPlanSelect();
+      renderAll();
+      toast('Klasse zurückgesetzt');
+      return;
+    }
+
+    // remove
+    const currentId = plan.id;
+    delete data.plans[currentId];
+
+    // choose next active
+    const remaining = Object.keys(data.plans);
+    data.settings.activePlanId = remaining[0] || '';
+    saveData(true);
+    fillPlanSelect();
+    renderAll();
+    toast('Klasse entfernt');
+  }
+
+  function onPlanLeaderChange(){
+    const sel = $('#planLeaderSelect');
+    const plan = getActivePlan();
+    if(!sel || !plan) return;
+    plan.leaderId = sel.value || '';
+    saveData(true);
+    renderAll();
   }
 
   function fillTeacherSelects(){
@@ -493,28 +915,38 @@
   function renderTop(){
     $('#yearInput').value = String(view.isoYear);
 
-    // holiday reference buttons (BE/BB)
+    fillPlanLeaderSelect();
+
+    // holiday reference (Berlin)
     const beBtn = $('#btnStateBE');
-    const bbBtn = $('#btnStateBB');
-    if(beBtn && bbBtn){
-      beBtn.classList.toggle('active', view.stateCode === 'BE');
-      bbBtn.classList.toggle('active', view.stateCode === 'BB');
-    }
+    if(beBtn){ beBtn.classList.add('active'); }
+    view.stateCode = 'BE';
 
     syncHolidayCollapseUI();
 
     const wd = getWeekDates(view.isoYear, view.isoWeek);
     $('#weekRangeLabel').textContent = `${formatRange(new Date(wd.start), new Date(wd.end))}`;
 
-    $('#planTitle').textContent = `Stundenplan – KW ${view.isoWeek} / ${view.isoYear}`;
+    const plan = getActivePlan();
+    const planName = plan?.name ? plan.name : 'Klasse';
+    // include class name so printouts stay unambiguous
+    $('#planTitle').textContent = `Stundenplan – ${planName} – KW ${view.isoWeek} / ${view.isoYear}`;
     const mon = new Date(wd.days[0]);
     const fri = new Date(wd.days[4]);
     $('#planSub').textContent = `${formatDateLong(mon)} – ${formatDateLong(fri)}`;
+	
+	const leaderId = (getActivePlan() && getActivePlan().leaderId) ? getActivePlan().leaderId : '';
+    const leader = leaderId ? data.teachers.find(t => t.id === leaderId) : null;
+    const leaderLabel = leader ? ` Klassenleitung: ${leader.name}` : '';
+	$('#planState').textContent = `${leaderLabel}`;
 
-    const stateName = STATE_OPTIONS.find(s => s.code === view.stateCode)?.name || view.stateCode;
-    $('#planState').textContent = `Feiertags-Referenz: ${stateName}`;
+//    const stateName = STATE_OPTIONS.find(s => s.code === view.stateCode)?.name || view.stateCode;
+//    $('#planState').textContent = `Feiertags-Referenz: ${stateName}`;
 
     $('#appInfo').textContent = `Version ${APP_VERSION} · Nico Siedler · lokal im Browser gespeichert`;
+
+    // keep selector in sync (e.g., after import)
+    fillPlanSelect();
   }
 
   function renderSidebar(){
@@ -671,12 +1103,37 @@
       .replaceAll("'", '&#039;');
   }
 
+  function getActivePlan(){
+    const pid = data?.settings?.activePlanId;
+    if(pid && data.plans && data.plans[pid]) return data.plans[pid];
+    const first = data && data.plans ? Object.values(data.plans)[0] : null;
+    if(first){
+      data.settings.activePlanId = first.id;
+      return first;
+    }
+    return null;
+  }
+
+  function allPlans(){
+    return data && data.plans ? Object.values(data.plans) : [];
+  }
+
+  function forEachWeekInAllPlans(fn){
+    for(const p of allPlans()){
+      if(!p?.weeks) continue;
+      for(const wk of Object.values(p.weeks)){
+        fn(wk, p);
+      }
+    }
+  }
+
   function getWeekObj(){
     const key = weekKey(view.isoYear, view.isoWeek);
-    if(!data.weeks[key]) data.weeks[key] = { cells: {}, note: '' };
-    if(!data.weeks[key].cells) data.weeks[key].cells = {};
-    if(typeof data.weeks[key].note !== 'string') data.weeks[key].note = '';
-    return data.weeks[key];
+    const plan = getActivePlan();
+    if(!plan.weeks[key]) plan.weeks[key] = { cells: {}, note: '' };
+    if(!plan.weeks[key].cells) plan.weeks[key].cells = {};
+    if(typeof plan.weeks[key].note !== 'string') plan.weeks[key].note = '';
+    return plan.weeks[key];
   }
 
   function getWeekNote(){
@@ -733,7 +1190,8 @@
 
   function clearWeek(){
     const key = weekKey(view.isoYear, view.isoWeek);
-    delete data.weeks[key];
+    const plan = getActivePlan();
+    if(plan?.weeks) delete plan.weeks[key];
     saveData(true);
     renderTimetable();
     renderLegend();
@@ -1251,7 +1709,24 @@
     const weekStart = dateOnly(new Date(wd.days[0]));
     const weekEnd = dateOnly(new Date(wd.days[4]));
 
-    try{
+    // Reference list: Berliner Schulferien (offline/embedded)
+    if(view.stateCode === 'BE'){
+      const y = Number(view.isoYear);
+      const base = (EMBEDDED_SCHOOL_HOLIDAYS_BE[String(y)] || []).map(h => ({ ...h, type: 'SchoolHoliday', source: 'embedded' }));
+      const holidays = base.map(holidayToRange).sort((a,b)=> String(a.startDate).localeCompare(String(b.startDate)));
+      status.textContent = `Berlin · ${y}`;
+      if(!holidays.length){
+        list.appendChild(makeEmptyItem('Keine Daten für dieses Jahr (Liste endet 2030).'));
+      } else {
+        for(const h of holidays){
+          list.appendChild(renderHolidayRow(h, false));
+        }
+      }
+      hint.textContent = 'Quelle: berlin.de (Ferienordnung) – Anzeige als Referenzliste.';
+      return;
+    }
+
+try{
       // fetch year-1/year/year+1 to cover cross-year holidays
       const years = [view.isoYear - 1, view.isoYear, view.isoYear + 1];
       const sets = await Promise.all(years.map(y => fetchHolidays(view.stateCode, y).catch(() => [])));
@@ -1262,7 +1737,7 @@
       for(const h of all){
         if(h.slug) bySlug.set(h.slug, h);
       }
-      const holidays = Array.from(bySlug.values()).sort((a,b) => a.startDate - b.startDate);
+      const holidays = Array.from(bySlug.values()).sort((a,b) => String(a.startDate).localeCompare(String(b.startDate)));
 
       const overlapping = holidays.filter(h => rangesOverlap(h.startDate, h.endDate, weekStart, weekEnd));
       const upcoming = holidays.filter(h => h.startDate > weekEnd).slice(0, 4);
@@ -1286,7 +1761,7 @@
         list.appendChild(makeEmptyItem('Keine Daten gefunden.'));
       }
 
-      hint.textContent = 'Quelle: ferien-api.de (Schulferien, Bundesländer).';
+      hint.textContent = 'Quelle: OpenHolidays API (Schulferien) – Fallback: ferien-api.de';
 
     } catch(err){
       status.textContent = 'offline';
@@ -1339,7 +1814,7 @@
     // default view week/year
     const now = new Date();
     const iso = getIsoWeekYear(now);
-    view.isoYear = Math.max(2026, iso.isoYear);
+    view.isoYear = Math.max(2024, iso.isoYear);
     view.isoWeek = iso.isoWeek;
 
     view.stateCode = data.settings.stateCode || 'BE';
@@ -1349,12 +1824,14 @@
 
     fillWeekSelect();
 
+    // class/plan selector
+    fillPlanSelect();
+
     // listeners
     $('#btnToggleSidebar').addEventListener('click', toggleSidebar);
 
     // right pane (holidays) hide/show
     $('#btnToggleHolidayPane').addEventListener('click', toggleHolidayPane);
-    $('#btnHolidayTab').addEventListener('click', () => setHolidayPaneHidden(false));
 
     $('#btnPrevWeek').addEventListener('click', () => shiftWeek(-1));
     $('#btnNextWeek').addEventListener('click', () => shiftWeek(1));
@@ -1364,7 +1841,7 @@
     $('#btnReload').addEventListener('click', () => location.reload());
 
     $('#yearInput').addEventListener('change', () => {
-      view.isoYear = clamp(Number($('#yearInput').value || 2026), 2026, 2099);
+      view.isoYear = clamp(Number($('#yearInput').value || 2024), 2024, 2099);
       fillWeekSelect();
       saveSettings();
       renderAll();
@@ -1375,9 +1852,24 @@
       renderAll();
     });
 
-    // holiday reference (Berlin/Brandenburg)
-    $('#btnStateBE').addEventListener('click', () => setHolidayState('BE'));
-    $('#btnStateBB').addEventListener('click', () => setHolidayState('BB'));
+    $('#planSelect').addEventListener('change', () => {
+      const pid = $('#planSelect').value;
+      if(pid && data.plans[pid]){
+        data.settings.activePlanId = pid;
+        saveData(true);
+        renderAll();
+      }
+    });
+
+    $('#btnAddPlan').addEventListener('click', (e) => { e.preventDefault(); addPlan(); });
+    $('#btnRenamePlan').addEventListener('click', (e) => { e.preventDefault(); renameActivePlan(); });
+    $('#btnDeletePlan').addEventListener('click', (e) => { e.preventDefault(); deleteActivePlan(); });
+    $('#planLeaderSelect')?.addEventListener('change', onPlanLeaderChange);
+
+    // holiday reference (Berlin)
+    const beBtn = $('#btnStateBE');
+    if(beBtn) beBtn.addEventListener('click', () => setHolidayState('BE'));
+
     $('#btnToggleHolidays').addEventListener('click', () => {
       data.settings.holidaysCollapsed = !data.settings.holidaysCollapsed;
       saveData(true);
@@ -1401,7 +1893,9 @@
     $('#btnSaveNow').addEventListener('click', () => { saveData(true); toast('Gespeichert'); });
 
     $('#btnExport').addEventListener('click', () => {
-      const fn = `BWK_Stundenplan_${weekKey(view.isoYear, view.isoWeek)}.json`;
+      const plan = getActivePlan();
+      const safeName = (plan?.name || 'Klasse').replace(/[^a-z0-9\-_. ]/gi,'').trim().replace(/\s+/g,'_');
+      const fn = `BWK_Stundenplan_${safeName}_${weekKey(view.isoYear, view.isoWeek)}.json`;
       downloadJSON(data, fn);
       toast('Export erstellt');
     });
@@ -1483,8 +1977,6 @@
   function syncHolidayPaneUI(){
     const hidden = !!data?.settings?.holidaysPaneHidden;
     document.body.classList.toggle('holidays-hidden', hidden);
-    const tab = $('#btnHolidayTab');
-    if(tab) tab.style.display = hidden ? 'inline-flex' : 'none';
     // keep the top button visually consistent
     const btn = $('#btnToggleHolidayPane');
     if(btn){
@@ -1510,7 +2002,7 @@
 
     if(w < 1){
       y -= 1;
-      y = Math.max(2026, y);
+      y = Math.max(2024, y);
       w = weeksInIsoYear(y);
     } else if(w > maxWeeks){
       y += 1;
@@ -1530,7 +2022,7 @@
   function goToToday(){
     const now = new Date();
     const iso = getIsoWeekYear(now);
-    view.isoYear = clamp(Math.max(2026, iso.isoYear), 2026, 2099);
+    view.isoYear = clamp(Math.max(2024, iso.isoYear), 2026, 2099);
     view.isoWeek = clamp(iso.isoWeek, 1, weeksInIsoYear(view.isoYear));
 
     $('#yearInput').value = String(view.isoYear);
@@ -1567,7 +2059,9 @@
 
     $('#teacherDialog').close();
     saveData(true);
-    renderSidebar();
+    // Re-render everything so the class leader dropdown (top bar)
+    // immediately includes newly created/edited teachers.
+    renderAll();
     toast('Lehrkraft gespeichert');
   }
 
@@ -1580,12 +2074,17 @@
     data.teachers = data.teachers.filter(t => t.id !== id);
 
     // remove references
-    for(const wk of Object.values(data.weeks)){
-      if(!wk?.cells) continue;
+    forEachWeekInAllPlans((wk) => {
+      if(!wk?.cells) return;
       for(const k of Object.keys(wk.cells)){
         const e = wk.cells[k];
         if(e && e.teacherId === id) e.teacherId = '';
       }
+    });
+
+    // clear as class leader
+    for(const p of Object.values(data.plans || {})){
+      if(p && p.leaderId === id) p.leaderId = '';
     }
 
     $('#teacherDialog').close();
@@ -1630,15 +2129,15 @@
     data.subjects = data.subjects.filter(s => s.id !== id);
 
     // remove references
-    for(const wk of Object.values(data.weeks)){
-      if(!wk?.cells) continue;
+    forEachWeekInAllPlans((wk) => {
+      if(!wk?.cells) return;
       for(const k of Object.keys(wk.cells)){
         const e = wk.cells[k];
         if(e && e.type === 'subject' && e.subjectId === id){
           delete wk.cells[k];
         }
       }
-    }
+    });
 
     if(view.placement?.type === 'subject' && view.placement.id === id) view.placement = null;
 
@@ -1681,15 +2180,15 @@
 
     data.specials = data.specials.filter(s => s.id !== id);
 
-    for(const wk of Object.values(data.weeks)){
-      if(!wk?.cells) continue;
+    forEachWeekInAllPlans((wk) => {
+      if(!wk?.cells) return;
       for(const k of Object.keys(wk.cells)){
         const e = wk.cells[k];
         if(e && e.type === 'special' && e.specialId === id){
           delete wk.cells[k];
         }
       }
-    }
+    });
 
     if(view.placement?.type === 'special' && view.placement.id === id) view.placement = null;
 
