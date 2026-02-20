@@ -1,7 +1,7 @@
 /* BWK Stundenplan – script.js
    - local first (localStorage)
    - ISO week based
-   - 4 Doppelblöcke / Tag, Mo–Fr
+   - 4 Blöcke / Tag, Mo–Fr
    - quick place mode + drag&drop
    - print A4 landscape
    - v.0.6 Nico Siedler (ricodelsien)
@@ -13,7 +13,7 @@
   const STORAGE_KEY = 'bwk_stundenplan_v2';
   const HOLIDAY_CACHE_KEY = 'bwk_stundenplan_holiday_cache_v1';
   const PUBLIC_HOLIDAY_CACHE_KEY = 'bwk_stundenplan_public_holiday_cache_v1';
-  const APP_VERSION = '0.9';
+  const APP_VERSION = '0.13';
 
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -312,6 +312,10 @@
     return d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
   }
 
+  function formatDateDMY(d){
+    return d.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+  }
+
   function formatDateLong(d){
     return d.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
   }
@@ -349,6 +353,63 @@
     const num = parseInt(h, 16);
     if(Number.isNaN(num)) return { r: 106, g: 166, b: 255 };
     return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+  }
+
+  function pickTextColor(hex){
+    const { r, g, b } = hexToRgbParts(hex);
+
+    // WCAG contrast: choose the text color (black/white) with the higher contrast ratio.
+    const toLin = (c) => {
+      const s = c / 255;
+      return s <= 0.03928 ? (s / 12.92) : Math.pow((s + 0.055) / 1.055, 2.4);
+    };
+    const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+
+    const contrastWithWhite = (1.0 + 0.05) / (L + 0.05);
+    const contrastWithBlack = (L + 0.05) / 0.05;
+
+    return (contrastWithBlack >= contrastWithWhite) ? '#000' : '#fff';
+  }
+
+  function applyEntryColorToCell(cell, entry){
+    if(!cell) return;
+    cell.classList.remove('has-color');
+    cell.style.removeProperty('--cell-bg');
+    cell.style.removeProperty('--cell-hover');
+    cell.style.removeProperty('--cell-pill-bg');
+    cell.style.removeProperty('--cell-pill-bd');
+    cell.style.color = '';
+
+    // do not override holiday styling
+    if(cell.classList.contains('is-holiday')) return;
+
+    if(!entry || !entry.type) return;
+
+    let color = null;
+    if(entry.type === 'subject'){
+      const subj = data.subjects.find(s => s.id === entry.subjectId);
+      color = subj?.color || null;
+    }
+    if(entry.type === 'special'){
+      const sp = data.specials.find(s => s.id === entry.specialId);
+      color = sp?.color || null;
+    }
+
+    if(!color) return;
+
+    const fg = pickTextColor(color);
+    cell.classList.add('has-color');
+    cell.style.setProperty('--cell-bg', color);
+    cell.style.setProperty('--cell-hover', color);
+    cell.style.color = fg;
+
+    if(fg === '#fff'){
+      cell.style.setProperty('--cell-pill-bg', 'rgba(0,0,0,.22)');
+      cell.style.setProperty('--cell-pill-bd', 'rgba(0,0,0,.22)');
+    } else {
+      cell.style.setProperty('--cell-pill-bg', 'rgba(255,255,255,.45)');
+      cell.style.setProperty('--cell-pill-bd', 'rgba(0,0,0,.18)');
+    }
   }
 
   function applyAccent(){
@@ -415,6 +476,7 @@
       settings: {
         stateCode: 'BE',
         slotLabels: ['Block 1', 'Block 2', 'Block 3', 'Block 4'],
+        pauseLabels: ['', '', ''],
         accentKey: 'blue',
         activePlanId: '',
       },
@@ -444,6 +506,11 @@
     if(!Array.isArray(out.settings.slotLabels)) out.settings.slotLabels = base.settings.slotLabels.slice();
     out.settings.slotLabels = out.settings.slotLabels.slice(0,4);
     while(out.settings.slotLabels.length < 4) out.settings.slotLabels.push(base.settings.slotLabels[out.settings.slotLabels.length]);
+
+    // ensure pauseLabels length 3 (Pause nach Block 1..3)
+    if(!Array.isArray(out.settings.pauseLabels)) out.settings.pauseLabels = base.settings.pauseLabels.slice();
+    out.settings.pauseLabels = out.settings.pauseLabels.slice(0,3);
+    while(out.settings.pauseLabels.length < 3) out.settings.pauseLabels.push('');
 
     // accent
     if(!out.settings.accentKey || !ACCENT_PRESETS[out.settings.accentKey]){
@@ -933,7 +1000,7 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     $('#planTitle').textContent = `Stundenplan – ${planName} – KW ${view.isoWeek} / ${view.isoYear}`;
     const mon = new Date(wd.days[0]);
     const fri = new Date(wd.days[4]);
-    $('#planSub').textContent = `${formatDateLong(mon)} – ${formatDateLong(fri)}`;
+    $('#planSub').textContent = '';
 	
 	const leaderId = (getActivePlan() && getActivePlan().leaderId) ? getActivePlan().leaderId : '';
     const leader = leaderId ? data.teachers.find(t => t.id === leaderId) : null;
@@ -963,18 +1030,22 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     } else {
       for(const t of data.teachers){
         const row = document.createElement('div');
-        row.className = 'item';
-        const accent = accentHexFor(data.settings.accentKey);
+        row.className = 'item teacher-item';
+
         row.innerHTML = `
-          <div class="dot" style="background:${hexToRgba(accent, .35)}"></div>
           <div class="item-main">
             <div class="item-title"></div>
-            <div class="item-sub"></div>
           </div>
           <button class="icon-btn" title="Bearbeiten" aria-label="Lehrkraft bearbeiten">✎</button>
         `;
+
         row.querySelector('.item-title').textContent = t.name;
-        row.querySelector('.item-sub').innerHTML = t.short ? `<span class="pill">${escapeHtml(t.short)}</span>` : `<span class="pill">ohne Kürzel</span>`;
+
+        row.addEventListener('click', (ev) => {
+          if(ev.target && ev.target.closest && ev.target.closest('button')) return;
+          openTeacherDialog(t.id);
+        });
+
         row.querySelector('button').addEventListener('click', () => openTeacherDialog(t.id));
         tList.appendChild(row);
       }
@@ -1012,7 +1083,7 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
         main.className = 'item-main';
         main.innerHTML = `
           <div class="item-sub">
-            ${defaultTeacher ? `<span class="pill">Standard: ${escapeHtml(defaultTeacher.short || defaultTeacher.name)}</span>` : `<span class="pill">Standard: —</span>`}
+            ${defaultTeacher ? `<span class="pill">${escapeHtml(defaultTeacher.short || defaultTeacher.name)}</span>` : `<span class="pill">Standard: —</span>`}
           </div>
         `;
 
@@ -1130,9 +1201,11 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
   function getWeekObj(){
     const key = weekKey(view.isoYear, view.isoWeek);
     const plan = getActivePlan();
-    if(!plan.weeks[key]) plan.weeks[key] = { cells: {}, note: '' };
+    if(!plan.weeks[key]) plan.weeks[key] = { cells: {}, note: '', classReps: '', qnOwner: '' };
     if(!plan.weeks[key].cells) plan.weeks[key].cells = {};
     if(typeof plan.weeks[key].note !== 'string') plan.weeks[key].note = '';
+    if(typeof plan.weeks[key].classReps !== 'string') plan.weeks[key].classReps = '';
+    if(typeof plan.weeks[key].qnOwner !== 'string') plan.weeks[key].qnOwner = '';
     return plan.weeks[key];
   }
 
@@ -1146,14 +1219,57 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     saveData();
   }
 
-  function syncWeekNotesUI(){
-    const input = $('#weekNotesInput');
-    const print = $('#weekNotesPrint');
-    if(!input || !print) return;
-    const note = getWeekNote();
-    if(document.activeElement !== input) input.value = note;
-    print.textContent = note.trim();
+
+  function getWeekClassReps(){
+    return getWeekObj().classReps || '';
   }
+
+  function setWeekClassReps(val){
+    const wk = getWeekObj();
+    wk.classReps = String(val || '');
+    saveData();
+  }
+
+  function getWeekQnOwner(){
+    return getWeekObj().qnOwner || '';
+  }
+
+  function setWeekQnOwner(val){
+    const wk = getWeekObj();
+    wk.qnOwner = String(val || '');
+    saveData();
+  }
+
+  function syncWeekNotesUI(){
+    const noteInput = $('#weekNotesInput');
+    const notePrint = $('#weekNotesPrint');
+    const repsInput = $('#weekClassRepsInput');
+    const repsPrint = $('#weekClassRepsPrint');
+    const qnInput = $('#weekQnOwnerInput');
+    const qnPrint = $('#weekQnOwnerPrint');
+
+    const note = getWeekNote();
+    const reps = getWeekClassReps();
+    const qn = getWeekQnOwner();
+
+    if(noteInput && document.activeElement !== noteInput) noteInput.value = note;
+    if(repsInput && document.activeElement !== repsInput) repsInput.value = reps;
+    if(qnInput && document.activeElement !== qnInput) qnInput.value = qn;
+
+    if(notePrint) notePrint.textContent = note.trim();
+    if(repsPrint) repsPrint.textContent = reps.trim();
+    if(qnPrint) qnPrint.textContent = qn.trim();
+
+    // For print: hide empty blocks
+    const noteField = $('#weekNoteField');
+    const repsField = $('#weekClassRepsField');
+    const qnField = $('#weekQnOwnerField');
+
+    if(noteField) noteField.classList.toggle('print-empty', note.trim().length === 0);
+    if(repsField) repsField.classList.toggle('print-empty', reps.trim().length === 0);
+    if(qnField) qnField.classList.toggle('print-empty', qn.trim().length === 0);
+  }
+
 
   function getEntry(day, slot){
     const wk = getWeekObj();
@@ -1209,10 +1325,10 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     // header row
     const corner = document.createElement('div');
     corner.className = 'tt-head tt-corner';
-    corner.innerHTML = `<span>Block</span><span class="small">(Doppel)</span>`;
+    corner.innerHTML = `<small>Unterrichtsstunden</small>`;
     el.appendChild(corner);
 
-    const dayNames = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+    const dayNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
     for(let i=0;i<5;i++){
       const d = new Date(wd.days[i]);
       const hd = document.createElement('div');
@@ -1222,10 +1338,10 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
       const holidayName = getBerlinHolidayNameForDay(day);
       if(holidayName){
         hd.classList.add('is-holiday');
-        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateShort(d)}</span><span class="holiday-badge">${escapeHtml(holidayName)}</span>`;
+        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateDMY(d)}</span><span class="holiday-badge">${escapeHtml(holidayName)}</span>`;
         hd.title = holidayName;
       } else {
-        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateShort(d)}</span>`;
+        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateDMY(d)}</span>`;
       }
       el.appendChild(hd);
     }
@@ -1235,7 +1351,7 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
       const rl = document.createElement('div');
       rl.className = 'tt-rowlabel';
       const label = data.settings.slotLabels[slot] || `Block ${slot+1}`;
-      rl.innerHTML = `<div>${escapeHtml(label)}</div><div class="time">Doppelblock</div>`;
+      rl.innerHTML = `<div>${escapeHtml(label)}</div>`;
       el.appendChild(rl);
 
       for(let day=1; day<=5; day++){
@@ -1255,6 +1371,7 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
 
         const entry = getEntry(day, slot);
         cell.innerHTML = renderCellHTML(entry);
+        applyEntryColorToCell(cell, entry);
 
         // click
         cell.addEventListener('click', (ev) => {
@@ -1307,6 +1424,27 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
 
         el.appendChild(cell);
       }
+
+      // pause row between blocks (optional, printable)
+      if(slot < 3){
+        const pr = document.createElement('div');
+        pr.className = 'tt-pauselabel';
+        const ptxt = (data.settings.pauseLabels && data.settings.pauseLabels[slot]) ? String(data.settings.pauseLabels[slot]).trim() : '';
+        pr.innerHTML = `
+          <div class="tt-pause-wrap">
+            <span class="tt-pause-tag">Pause</span>
+            <span class="tt-pause-fill">${escapeHtml(ptxt)}</span>
+          </div>
+        `;
+        el.appendChild(pr);
+
+        for(let day=1; day<=5; day++){
+          const gap = document.createElement('div');
+          gap.className = 'tt-gap';
+          gap.setAttribute('aria-hidden', 'true');
+          el.appendChild(gap);
+        }
+      }
     }
 
     renderLegend();
@@ -1320,8 +1458,6 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     if(entry.type === 'subject'){
       const subj = data.subjects.find(s => s.id === entry.subjectId);
       const t = entry.teacherId ? data.teachers.find(x => x.id === entry.teacherId) : null;
-      const color = subj?.color || '#6aa6ff';
-      const bg = hexToRgba(color, 0.12);
       return `
         <div class="tt-entry">
           <div class="line1">${escapeHtml(subj?.name || 'Fach')}</div>
@@ -1330,7 +1466,6 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
             ${entry.room ? `<span class="pill">${escapeHtml(entry.room)}</span>` : ''}
             ${entry.note ? `<span class="pill">${escapeHtml(entry.note)}</span>` : ''}
           </div>
-          <div class="colorbar" style="background:${color}; border-color:${hexToRgba(color,.35)}"></div>
         </div>
       `;
     }
@@ -1338,7 +1473,6 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     if(entry.type === 'special'){
       const sp = data.specials.find(s => s.id === entry.specialId);
       const t = entry.teacherId ? data.teachers.find(x => x.id === entry.teacherId) : null;
-      const color = sp?.color || '#ffb86b';
       return `
         <div class="tt-entry">
           <div class="line1">${escapeHtml(sp?.title || 'Sonder')}</div>
@@ -1347,7 +1481,6 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
             ${entry.room ? `<span class="pill">${escapeHtml(entry.room)}</span>` : ''}
             ${entry.note ? `<span class="pill">${escapeHtml(entry.note)}</span>` : ''}
           </div>
-          <div class="colorbar" style="background:${color}; border-color:${hexToRgba(color,.35)}"></div>
         </div>
       `;
     }
@@ -1399,6 +1532,193 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     }
   }
 
+
+  // ---- Printing ----
+
+  function openPrintDialog(){
+    const dlg = $('#printDialog');
+    if(!dlg) return window.print();
+    const cur = dlg.querySelector('input[name="printMode"][value="current"]');
+    if(cur) cur.checked = true;
+    dlg.showModal();
+  }
+
+  function onPrintSubmit(e){
+    e.preventDefault();
+    const dlg = $('#printDialog');
+    const mode = document.querySelector('#printDialog input[name="printMode"]:checked')?.value || 'current';
+
+    if(mode === 'all'){
+      preparePrintAll();
+      document.body.classList.add('print-mode-all');
+    } else {
+      document.body.classList.remove('print-mode-all');
+      clearPrintAll();
+    }
+
+    if(dlg) dlg.close('ok');
+
+    setTimeout(() => {
+      window.print();
+    }, 40);
+  }
+
+  function clearPrintAll(){
+    const c = $('#printAllContainer');
+    if(c) c.innerHTML = '';
+  }
+
+  function preparePrintAll(){
+    const container = $('#printAllContainer');
+    if(!container) return;
+
+    container.innerHTML = '';
+
+    const wd = getWeekDates(view.isoYear, view.isoWeek);
+    weekDayISO = wd.days.map(toISODate);
+
+    const plans = Object.values(data.plans || {}).filter(Boolean)
+      .sort((a,b) => String(a.name||'').localeCompare(String(b.name||''), 'de'));
+
+    for(const plan of plans){
+      const section = document.createElement('section');
+      section.className = 'print-plan';
+
+      const leader = plan.leaderId ? data.teachers.find(t => t.id === plan.leaderId) : null;
+      const leaderLabel = leader ? `Klassenleitung: ${leader.name}` : '';
+
+      const meta = document.createElement('div');
+      meta.className = 'plan-meta';
+      meta.innerHTML = `
+        <div>
+          <div class="title">Stundenplan – ${escapeHtml(plan.name || 'Klasse')} – KW ${view.isoWeek} / ${view.isoYear}</div>
+        </div>
+        <div class="sub">${escapeHtml(leaderLabel)}</div>
+      `;
+      section.appendChild(meta);
+
+      const grid = buildTimetableGridForPlan(plan, wd);
+      section.appendChild(grid);
+
+      const wk = peekWeekObjForPlan(plan, view.isoYear, view.isoWeek);
+      const note = String(wk.note || '').trim();
+      const qn = String(wk.qnOwner || '').trim();
+
+      if(note || qn){
+        const notesWrap = document.createElement('div');
+        notesWrap.className = 'week-notes';
+
+        if(note){
+          const f = document.createElement('div');
+          f.className = 'week-field';
+          f.innerHTML = `
+            <div class="week-notes-title">Freitext (optional)</div>
+            <div class="week-notes-print">${escapeHtml(note)}</div>
+          `;
+          notesWrap.appendChild(f);
+        }
+
+        if(qn){
+          const f = document.createElement('div');
+          f.className = 'week-field';
+          f.innerHTML = `
+            <div class="week-notes-title">Qualifizierungsnachweise – verantwortlich (optional)</div>
+            <div class="week-notes-print">${escapeHtml(qn)}</div>
+          `;
+          notesWrap.appendChild(f);
+        }
+
+        section.appendChild(notesWrap);
+      }
+
+      container.appendChild(section);
+    }
+  }
+
+  function peekWeekObjForPlan(plan, isoYear, isoWeek){
+    const key = weekKey(isoYear, isoWeek);
+    const wk = plan && plan.weeks ? plan.weeks[key] : null;
+    if(wk && typeof wk === 'object') return wk;
+    return { cells: {}, note: '', classReps: '', qnOwner: '' };
+  }
+
+  function buildTimetableGridForPlan(plan, wd){
+    const el = document.createElement('div');
+    el.className = 'timetable';
+
+    const corner = document.createElement('div');
+    corner.className = 'tt-head tt-corner';
+    corner.innerHTML = `<span>Block</span>`;
+    el.appendChild(corner);
+
+    const dayNames = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
+    for(let i=0;i<5;i++){
+      const d = new Date(wd.days[i]);
+      const hd = document.createElement('div');
+      hd.className = 'tt-head';
+
+      const day = i+1;
+      const holidayName = getBerlinHolidayNameForDay(day);
+      if(holidayName){
+        hd.classList.add('is-holiday');
+        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateDMY(d)}</span><span class="holiday-badge">${escapeHtml(holidayName)}</span>`;
+        hd.title = holidayName;
+      } else {
+        hd.innerHTML = `${dayNames[i]}<span class="tt-date">${formatDateDMY(d)}</span>`;
+      }
+      el.appendChild(hd);
+    }
+
+    const wk = peekWeekObjForPlan(plan, view.isoYear, view.isoWeek);
+
+    for(let slot=0; slot<4; slot++){
+      const rl = document.createElement('div');
+      rl.className = 'tt-rowlabel';
+      const label = data.settings.slotLabels[slot] || `Block ${slot+1}`;
+      rl.innerHTML = `<div>${escapeHtml(label)}</div>`;
+      el.appendChild(rl);
+
+      for(let day=1; day<=5; day++){
+        const cell = document.createElement('div');
+        cell.className = 'tt-cell';
+
+        const holidayName = getBerlinHolidayNameForDay(day);
+        if(holidayName){
+          cell.classList.add('is-holiday');
+          cell.title = holidayName;
+        }
+
+        const entry = (wk.cells && wk.cells[`${day}-${slot}`]) ? wk.cells[`${day}-${slot}`] : null;
+        cell.innerHTML = renderCellHTML(entry);
+        applyEntryColorToCell(cell, entry);
+
+        el.appendChild(cell);
+      }
+
+      if(slot < 3){
+        const pr = document.createElement('div');
+        pr.className = 'tt-pauselabel';
+        const ptxt = (data.settings.pauseLabels && data.settings.pauseLabels[slot]) ? String(data.settings.pauseLabels[slot]).trim() : '';
+        pr.innerHTML = `
+          <div class="tt-pause-wrap">
+            <span class="tt-pause-tag">Pause</span>
+            <span class="tt-pause-fill">${escapeHtml(ptxt)}</span>
+          </div>
+        `;
+        el.appendChild(pr);
+
+        for(let day=1; day<=5; day++){
+          const gap = document.createElement('div');
+          gap.className = 'tt-gap';
+          gap.setAttribute('aria-hidden', 'true');
+          el.appendChild(gap);
+        }
+      }
+    }
+
+    return el;
+  }
+
   // ---- Placement mode ----
 
   function togglePlacement(type, id){
@@ -1416,7 +1736,7 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     if(view.placement){
       const token = document.querySelector(`.token[data-type="${view.placement.type}"][data-id="${view.placement.id}"]`);
       if(token) token.classList.add('armed');
-      $('#placeHint').textContent = 'Einfügen aktiv: Feld im Plan antippen. (Esc zum Abbrechen).';
+      $('#placeHint').textContent = 'Einfügen aktiv: Feld im Plan antippen oder in den Plan ziehen (Esc zum Abbrechen).';
     } else {
       $('#placeHint').textContent = 'Fach/Sondermodul antippen – anschließend ein Feld im Plan. Oder das Fach direkt in das Wunschfeld ziehen.';
     }
@@ -1623,6 +1943,12 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
 
   // ---- Settings ----
 
+  function normalizePauseText(s){
+    let v = String(s || '').trim();
+    v = v.replace(/^pause[\s:\-–—]*/i, '');
+    return v.trim();
+  }
+
   function openSettingsDialog(){
     const dlg = $('#settingsDialog');
     const labels = data.settings.slotLabels || ['Block 1','Block 2','Block 3','Block 4'];
@@ -1630,6 +1956,12 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     $('#slot2').value = labels[1] || '';
     $('#slot3').value = labels[2] || '';
     $('#slot4').value = labels[3] || '';
+
+    const pauses = data.settings.pauseLabels || ['', '', ''];
+    const p1 = $('#pause1'); const p2 = $('#pause2'); const p3 = $('#pause3');
+    if(p1) p1.value = pauses[0] || '';
+    if(p2) p2.value = pauses[1] || '';
+    if(p3) p3.value = pauses[2] || '';
 
     const acc = $('#accentSelect');
     if(acc){
@@ -1903,7 +2235,7 @@ try{
     $('#btnImport').addEventListener('click', () => $('#importFile').click());
     $('#importFile').addEventListener('change', onImportFile);
 
-    $('#btnPrint').addEventListener('click', () => window.print());
+    $('#btnPrint').addEventListener('click', openPrintDialog);
 
     // week notes
     $('#weekNotesInput').addEventListener('input', (e) => {
@@ -1911,12 +2243,29 @@ try{
       syncWeekNotesUI();
     });
 
+    // week meta (optional)
+    $('#weekClassRepsInput')?.addEventListener('input', (e) => {
+      setWeekClassReps(e.target.value);
+      syncWeekNotesUI();
+    });
+
+    $('#weekQnOwnerInput')?.addEventListener('input', (e) => {
+      setWeekQnOwner(e.target.value);
+      syncWeekNotesUI();
+    });
+
     // ensure print only shows notes if filled
     window.addEventListener('beforeprint', () => {
       const note = getWeekNote().trim();
-      document.body.classList.toggle('print-has-notes', note.length > 0);
-      const printEl = $('#weekNotesPrint');
-      if(printEl) printEl.textContent = note;
+      const reps = getWeekClassReps().trim();
+      const qn = getWeekQnOwner().trim();
+      document.body.classList.toggle('print-has-meta', (note.length + reps.length + qn.length) > 0);
+      syncWeekNotesUI();
+    });
+
+    window.addEventListener('afterprint', () => {
+      document.body.classList.remove('print-mode-all');
+      clearPrintAll();
     });
 
     $('#btnClearWeek').addEventListener('click', () => {
@@ -1938,6 +2287,7 @@ try{
     $('#entrySubject').addEventListener('change', () => maybeApplyDefaultTeacher(false));
     $('#entryTeacher').addEventListener('change', () => { entryTeacherTouched = true; });
     $('#entryForm').addEventListener('submit', onEntrySubmit);
+    $('#printForm')?.addEventListener('submit', onPrintSubmit);
     $('#entryDeleteBtn').addEventListener('click', onEntryDelete);
 
     $('#settingsForm').addEventListener('submit', onSettingsSubmit);
@@ -2209,7 +2559,7 @@ try{
     const type = $('#entryType').value;
     if(type === 'empty'){
       setEntry(day, slot, null);
-      $('#entryDialog').close();
+      $('#entryDialog').close('ok');
       toast('Feld geleert');
       return;
     }
@@ -2240,7 +2590,7 @@ try{
       setEntries(day, slots, { type:'special', specialId, teacherId, room, note });
     }
 
-    $('#entryDialog').close();
+    $('#entryDialog').close('ok');
     toast('Eintrag gespeichert');
   }
 
@@ -2248,7 +2598,7 @@ try{
     const key = $('#entryCellKey').value;
     const [dayStr, slotStr] = key.split('-');
     setEntry(Number(dayStr), Number(slotStr), null);
-    $('#entryDialog').close();
+    $('#entryDialog').close('ok');
     toast('Eintrag gelöscht');
   }
 
@@ -2259,6 +2609,12 @@ try{
       $('#slot2').value.trim() || 'Block 2',
       $('#slot3').value.trim() || 'Block 3',
       $('#slot4').value.trim() || 'Block 4',
+    ];
+
+    data.settings.pauseLabels = [
+      normalizePauseText($('#pause1')?.value),
+      normalizePauseText($('#pause2')?.value),
+      normalizePauseText($('#pause3')?.value),
     ];
 
     const acc = $('#accentSelect')?.value;
@@ -2342,6 +2698,9 @@ try{
       merged.settings = merged.settings || {};
       merged.settings.stateCode = merged.settings.stateCode || incoming.settings?.stateCode || 'BE';
       merged.settings.slotLabels = (merged.settings.slotLabels && merged.settings.slotLabels.length) ? merged.settings.slotLabels : (incoming.settings?.slotLabels || ['Block 1','Block 2','Block 3','Block 4']);
+      merged.settings.pauseLabels = (Array.isArray(merged.settings.pauseLabels) && merged.settings.pauseLabels.length) ? merged.settings.pauseLabels : (incoming.settings?.pauseLabels || ['', '', '']);
+      merged.settings.pauseLabels = merged.settings.pauseLabels.slice(0,3);
+      while(merged.settings.pauseLabels.length < 3) merged.settings.pauseLabels.push('');
 
       data = merged;
     }

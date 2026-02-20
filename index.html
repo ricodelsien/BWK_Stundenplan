@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0b0d10" />
-  <title>BWK-Stundenplan</title>
+  <title>BWK Stundenplan-Editor</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -13,7 +13,7 @@
     <button class="icon-btn" id="btnToggleSidebar" aria-label="Seitenleiste öffnen/schließen">☰</button>
 
     <div class="brand">
-      <div class="brand-title">BWK-Stundenplan</div>
+      <div class="brand-title">BWK Stundenplan-Editor</div>
     </div>
 
     <div class="top-actions">
@@ -73,17 +73,17 @@
     <aside class="sidebar no-print" id="sidebar">
       <div class="sidebar-head">
         <div class="sidebar-title">Module</div>
-        <button class="icon-btn" id="btnSettings" aria-label="Einstellungen" title="Einstellungen">⚙️</button>
+        <button class="icon-btn clue" id="btnSettings" aria-label="Einstellungen" title="Einstellungen">Konfiguration</button>
       </div>
 
-      <div class="hint" id="placeHint">Fach/Sondermodul antippen – anschließend ein Feld im Plan. Oder das Fach direkt in das Wunschfeld ziehen.</div>
+      <div class="hint" id="placeHint">Lehrkräfte, Fächer oder Sonderveranstaltungen <br>jeweils mit "+" hinzufügen.</div>
 
       <details class="section" open>
         <summary class="section-title">
           Lehrkräfte
           <span class="summary-actions">
             <span class="count" id="countTeachers">0</span>
-            <button class="icon-btn tiny" id="btnAddTeacher" type="button" aria-label="Lehrkraft hinzufügen" title="Lehrkraft hinzufügen">＋</button>
+            <button class="icon-btn tiny" id="btnAddTeacher" type="button" aria-label="Lehrkraft hinzufügen" title="Lehrkraft hinzufügen">+</button>
           </span>
         </summary>
         <div class="list" id="teacherList"></div>
@@ -94,7 +94,7 @@
           Fächer
           <span class="summary-actions">
             <span class="count" id="countSubjects">0</span>
-            <button class="icon-btn tiny" id="btnAddSubject" type="button" aria-label="Fach hinzufügen" title="Fach hinzufügen">＋</button>
+            <button class="icon-btn tiny" id="btnAddSubject" type="button" aria-label="Fach hinzufügen" title="Fach hinzufügen">+</button>
           </span>
         </summary>
         <div class="list" id="subjectList"></div>
@@ -105,7 +105,7 @@
           Sonderveranstaltungen
           <span class="summary-actions">
             <span class="count" id="countSpecials">0</span>
-            <button class="icon-btn tiny" id="btnAddSpecial" type="button" aria-label="Sonderveranstaltung hinzufügen" title="Sonderveranstaltung hinzufügen">＋</button>
+            <button class="icon-btn tiny" id="btnAddSpecial" type="button" aria-label="Sonderveranstaltung hinzufügen" title="Sonderveranstaltung hinzufügen">+</button>
           </span>
         </summary>
         <div class="list" id="specialList"></div>
@@ -123,12 +123,14 @@
           <div class="card-head">
             <div class="card-title">Stundenplan</div>
             <div class="controls no-print">
-              <button class="btn ghost" id="btnClearWeek">Woche leeren</button>
+              <button class="icon-btn danger" id="btnClearWeek">Woche leeren</button>
             </div>
           </div>
 
           <div class="print-area" id="printArea">
             <div class="print-inner" id="printInner">
+              <div id="printSingleContainer">
+
               <div class="plan-meta">
                 <div>
                   <div class="title" id="planTitle">—</div>
@@ -139,16 +141,26 @@
 
               <div class="timetable" id="timetable"></div>
 
-              <div class="legend" id="legend"></div>
-
               <div class="week-notes" id="weekNotesWrap">
-                <div class="week-notes-title">Freitext (optional)</div>
-                <textarea id="weekNotesInput" class="week-notes-input" rows="3" maxlength="800" placeholder="z. B. Hinweise, Absprachen, Besonderheiten der Woche …"></textarea>
-                <div id="weekNotesPrint" class="week-notes-print only-print"></div>
+                <div class="week-field" id="weekNoteField">
+                  <div class="week-notes-title">Zusatzinformationen</div>
+                  <textarea id="weekNotesInput" class="week-notes-input" rows="3" maxlength="800" placeholder="z. B. Hinweise, Absprachen, Besonderheiten der Woche …"></textarea>
+                  <div id="weekNotesPrint" class="week-notes-print only-print"></div>
+                </div>
+                </div>
+
+                <div class="week-field" id="weekQnOwnerField">
+                  <div class="week-notes-title">Verantwortlich für Qualifizierungsnachweise</div>
+                  <input id="weekQnOwnerInput" class="week-meta-input" type="text" maxlength="120" placeholder="z. B. Frau Müller" />
+                  <div id="weekQnOwnerPrint" class="week-notes-print only-print"></div>
+                </div>
               </div>
 
               <div class="hint no-print">Klick auf ein Feld = bearbeiten. Doppelklick = leeren.</div>
-            </div>
+                          </div>
+
+              <div id="printAllContainer" class="print-all-container only-print"></div>
+</div>
           </div>
         </div>
 
@@ -196,6 +208,30 @@
       </div>
     </form>
   </dialog>
+  
+  <!-- Print Modal -->
+  <dialog class="modal" id="printDialog">
+    <form method="dialog" class="modal-box" id="printForm">
+      <div class="modal-title">Drucken</div>
+      <div class="hint" style="margin-top:8px">Was soll gedruckt werden?</div>
+
+      <label class="choice">
+        <input type="radio" name="printMode" value="current" checked />
+        <span>Nur aktuelle Klasse (gewählte KW)</span>
+      </label>
+
+      <label class="choice">
+        <input type="radio" name="printMode" value="all" />
+        <span>Alle Klassen dieser KW</span>
+      </label>
+
+      <div class="modal-actions">
+        <button class="btn ghost" type="button" data-cancel>Abbrechen</button>
+        <button class="btn" id="btnDoPrint" value="ok">Drucken</button>
+      </div>
+    </form>
+  </dialog>
+
 
   <!-- Teacher Modal -->
   <dialog class="modal" id="teacherDialog">
@@ -322,7 +358,7 @@
       </div>
 
       <div class="apply-wrap" id="applyWrap">
-        <div class="apply-title">Auf weitere Blöcke anwenden (gleicher Tag)</div>
+        <div class="apply-title">Auf weitere Blöcke anwenden (gewählter Tag)</div>
         <div class="apply-grid" id="applyGrid" aria-label="Blöcke auswählen"></div>
       </div>
 
@@ -339,7 +375,7 @@
   <!-- Settings Modal -->
   <dialog class="modal" id="settingsDialog">
     <form method="dialog" class="modal-box" id="settingsForm">
-      <div class="modal-title">Einstellungen</div>
+      <div class="modal-title">Konfiguration / Voreinstellungen</div>
 
       <div class="hint">Block-Beschriftungen (4 Doppelblöcke). Es können auch Unterrichtszeiten eingetragen werden.</div>
 
@@ -364,22 +400,47 @@
           <input id="slot4" type="text" maxlength="40" placeholder="z. B. 14:15–15:45" />
         </label>
       </div>
+	  
+	  <br>
+
+      <div class="row">
+        <label class="field">
+          <span>Pause nach Block 1</span>
+          <input id="pause1" type="text" maxlength="30" placeholder="z. B. 20 min" />
+        </label>
+        <label class="field">
+          <span>Pause nach Block 2</span>
+          <input id="pause2" type="text" maxlength="30" placeholder="z. B. 40 min" />
+        </label>
+      </div>
+
+      <div class="row">
+        <label class="field">
+          <span>Pause nach Block 3</span>
+          <input id="pause3" type="text" maxlength="30" placeholder="z. B. 15 min" />
+        </label>
+        <div class="field">
+          <div class="hint" style="margin-top:0">Die Pausen erscheinen als gestrichelte Linie im Plan.</div>
+        </div>
+      </div>
+	  
+	  <br>
 
       <div class="row">
         <label class="field">
           <span>Akzentfarbe</span>
           <select id="accentSelect" aria-label="Akzentfarbe wählen">
-            <option value="blue">Blau</option>
-            <option value="green">Grün</option>
+            <option value="blue">Tiefseeblau</option>
+            <option value="green">Tannengrün</option>
             <option value="wine">Weinrot</option>
-            <option value="violet">Violett</option>
-            <option value="brown">Braun</option>
+            <option value="violet">Ultraviolett</option>
+            <option value="brown">Lehmbraun</option>
             <option value="mustard">Senfgelb</option>
           </select>
         </label>
         <div class="field">
           <span>Hinweis</span>
-          <div class="hint" style="margin-top:0">Der Akzent beeinflusst Hintergrund und Fenster (nicht die Fachfarben).</div>
+          <div class="hint" style="margin-top:0">Farbakzent für die Arbeitsumgebung (kein Einfluss auf Druck).</div>
         </div>
       </div>
 

@@ -235,7 +235,7 @@ body.sidebar-collapsed .sidebar{ display: none; }
   overflow: clip;
 }
 
-/* Holiday pane: hide/show like the left sidebar */
+/* Holiday pane: hide/show */
 :root{ --right-pane-width: clamp(220px, 24vw, 320px); }
 body.holidays-hidden{ --right-pane-width: 0px; }
 body.holidays-hidden .holiday-card{
@@ -317,6 +317,20 @@ body.holidays-hidden #holidayCard{
 }
 .icon-btn.danger:hover{
   border-color: rgba(220, 70, 70, .55);
+}
+
+.icon-btn.add{
+  border-color: rgba(70, 220, 70, .35);
+}
+.icon-btn.add:hover{
+  border-color: rgba(70, 220, 70, .55);
+}
+
+.icon-btn.clue{
+  border-color: rgba(70, 70, 220, .35);
+}
+.icon-btn.add:hover{
+  border-color: rgba(70, 70, 220, .55);
 }
 
 
@@ -477,7 +491,7 @@ details[open] > summary.section-title::after{ content: "▴"; }
   white-space: nowrap;
 }
 .token:active{ cursor: grabbing; }
-.token.armed{ outline: 3px solid var(--accent-outline); }
+.token.armed{ outline: 5px solid var(--accent-outline); }
 
 /* ========== TIMETABLE ========== */
 
@@ -501,6 +515,7 @@ details[open] > summary.section-title::after{ content: "▴"; }
   font-size: 12px;
   color: var(--muted);
 }
+#planSub:empty{ display:none; }
 
 .timetable{
   display: grid;
@@ -535,11 +550,53 @@ details[open] > summary.section-title::after{ content: "▴"; }
 
 .tt-rowlabel .time{ font-size: 12px; color: var(--muted); font-weight: 650; }
 
+/* pause rows between blocks */
+.tt-pauselabel{
+  border-top: 0;
+  background: var(--subtle-bg);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+}
+
+.tt-pause-wrap{ display:flex; align-items:baseline; gap:8px; width:100%; }
+.tt-pause-tag{ font-weight: 720; opacity: .9; }
+.tt-pause-fill{
+  flex: 1;
+  min-width: 70px;
+  border-bottom: 1px solid var(--soft2);
+  padding-bottom: 2px;
+}
+
+.tt-gap{
+  border-left: 1px solid var(--soft2);
+  border-top: 0;
+  background: var(--cell-bg);
+  min-height: 28px;
+  position: relative;
+}
+
+.tt-gap::before{
+  content:'';
+  position:absolute;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 2px dashed var(--soft2);
+  opacity: .9;
+  pointer-events:none;
+}
+
 .tt-cell{
   border: none;
   border-top: 1px solid var(--soft2);
   border-left: 1px solid var(--soft2);
   background: var(--cell-bg);
+  position: relative;
   padding: 10px;
   min-height: 86px;
   text-align: left;
@@ -591,6 +648,42 @@ details[open] > summary.section-title::after{ content: "▴"; }
 
 .tt-entry .line1{ font-weight: 820; line-height: 1.15; word-break: break-word; }
 .tt-entry .line2{ font-size: 12px; color: var(--muted); font-weight: 650; display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Colored entries: fill whole cell + auto readable text */
+.tt-cell.has-color{
+  color: inherit; /* overwritten via inline style */
+  background: transparent; /* we'll draw the color in an inset layer */
+}
+
+/* inset colored layer so the blocks don't look like one continuous slab */
+.tt-cell.has-color::before{
+  content:'';
+  position:absolute;
+  inset: 4px;
+  border-radius: 12px;
+  background: var(--cell-bg);
+  z-index: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.tt-cell.has-color:hover::before{ background: var(--cell-hover); }
+
+.tt-cell.has-color > *{
+  position: relative;
+  z-index: 1;
+}
+
+.tt-cell.has-color .tt-entry .line2{
+  color: currentColor;
+  opacity: .92;
+}
+
+.tt-cell.has-color .pill{
+  background: var(--cell-pill-bg, rgba(255,255,255,.28));
+  border-color: var(--cell-pill-bd, rgba(0,0,0,.18));
+  color: currentColor;
+}
 
 .colorbar{
   width: 100%;
@@ -678,6 +771,8 @@ option{
 
 /* Week notes */
 .week-notes{ margin-top: 12px; }
+.week-field{ margin-top: 10px; }
+.week-field:first-child{ margin-top: 0; }
 .week-notes-title{ font-size: 12px; color: var(--muted); font-weight: 650; margin-bottom: 6px; }
 .week-notes-input{
   width: 100%;
@@ -690,6 +785,16 @@ option{
   min-height: 70px;
 }
 .week-notes-input:focus{ border-color: var(--accent-strong); }
+.week-meta-input{
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid var(--soft2);
+  background: var(--subtle-bg);
+  padding: 10px 12px;
+  outline: none;
+  font-size: 16px; /* iOS zoom */
+}
+.week-meta-input:focus{ border-color: var(--accent-strong); }
 .only-print{ display: none; }
 .field input:focus, .field select:focus, .field textarea:focus{ border-color: var(--accent-strong); }
 
@@ -717,6 +822,30 @@ option{
   gap: 10px;
   flex-wrap: wrap;
 }
+
+.choice{
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--soft2);
+  background: var(--subtle-bg);
+  cursor: pointer;
+  user-select: none;
+}
+.choice input{ width: 18px; height: 18px; }
+.choice span{ font-weight: 680; }
+
+#entryDialog .row{ align-items: end; }
+#entryDialog .field select{ height: 44px; padding: 0 12px; }
+
+.teacher-item{ justify-content: center; position: relative; }
+.teacher-item .item-main{ text-align: left; }
+.teacher-item button.icon-btn tiny{ position: absolute; right: 8px; }
+
+
 
 .toast{
   position: fixed;
@@ -774,6 +903,8 @@ option{
     --soft: rgba(0,0,0,.18);
     --soft2: rgba(0,0,0,.12);
     --shadow: none;
+    --cell-bg: #ffffff;
+    --cell-hover: #ffffff;
   }
 
   body{ background: #fff !important; }
@@ -791,9 +922,26 @@ option{
   .print-area{ display: flex; justify-content: center; }
   .print-inner{ width: 100%; transform: scale(.95); transform-origin: top center; }
 
-  .week-notes-input{ display: none !important; }
+  .week-notes-input, .week-meta-input{ display: none !important; }
   .only-print{ display: block; }
-  body:not(.print-has-notes) #weekNotesWrap{ display: none !important; }
+  body:not(.print-has-meta) #weekNotesWrap{ display: none !important; }
+  #weekNotesWrap .week-field.print-empty{ display: none !important; }
+
+  /* in print we don't need the on-screen legend chips */
+  .legend{ display: none !important; }
+
+  /* print mode switches (current vs. all classes) */
+  body.print-mode-all #printSingleContainer{ display: none !important; }
+  body.print-mode-all #printAllContainer{ display: block !important; }
+  body:not(.print-mode-all) #printAllContainer{ display: none !important; }
+
+  /* keep print compact */
+  #weekClassRepsField{ display: none !important; }
+  #weekNotesWrap{ break-inside: avoid; page-break-inside: avoid; }
+  .week-field{ break-inside: avoid; page-break-inside: avoid; }
+
+  .print-plan{ margin-bottom: 16px; break-after: page; page-break-after: always; }
+  .print-plan:last-child{ break-after: auto; page-break-after: auto; }
   .week-notes-print{
     margin-top: 6px;
     border: 1px solid rgba(0,0,0,.25);
@@ -805,7 +953,12 @@ option{
 
   .timetable{ border: 1px solid rgba(0,0,0,.25); }
   .tt-head, .tt-rowlabel{ background: #f5f7ff; }
-  .tt-cell{ background: #fff; }
+  .tt-cell{ background: var(--cell-bg); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .tt-cell.has-color{ background: transparent !important; }
+
+  .tt-pauselabel{ background: #f5f7ff; }
+  .tt-gap::before{ border-top-color: rgba(0,0,0,.35); }
+  .tt-pause-fill{ border-bottom-color: rgba(0,0,0,.45); }
 
   .legend .legend-item{ background: #fff; }
 }
