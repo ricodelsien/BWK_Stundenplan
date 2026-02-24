@@ -518,6 +518,9 @@ details[open] > summary.section-title::after{ content: "▴"; }
 #planTitle.title-red,
 .print-plan .title.title-red  { color: #ef4444; }  /* AVöD II */
 
+#planTitle.title-green,
+.print-plan .title.title-red  { color: #228B22; }  /* AVöD II */
+
 /* optional: wenn eine Titel-Farbe aktiv ist, noch etwas kräftiger */
 #planTitle[class*="title-"],
 .print-plan .title[class*="title-"]{
