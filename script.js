@@ -1071,6 +1071,13 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
   }
 
   function renderSidebar(){
+    // sort teachers alphabetisch nach Name (stabil für Anzeige, ohne IDs zu ändern)
+    data.teachers.sort((a, b) => {
+      const na = (a.name || '').toLocaleLowerCase('de-DE');
+      const nb = (b.name || '').toLocaleLowerCase('de-DE');
+      return na.localeCompare(nb, 'de-DE');
+    });
+
     // Counts
     $('#countTeachers').textContent = String(data.teachers.length);
     $('#countSubjects').textContent = String(data.subjects.length);
