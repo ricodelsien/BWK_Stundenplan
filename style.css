@@ -511,8 +511,22 @@ details[open] > summary.section-title::after{ content: "▴"; }
   font-size: 18px;
 }
 
+/* Plan-Titel: Farbe je Klasse (auch im Mehrfachdruck) */
+#planTitle.title-blue,
+.print-plan .title.title-blue { color: #3b82f6; }  /* AVöD I */
+
+#planTitle.title-red,
+.print-plan .title.title-red  { color: #ef4444; }  /* AVöD II */
+
+/* optional: wenn eine Titel-Farbe aktiv ist, noch etwas kräftiger */
+#planTitle[class*="title-"],
+.print-plan .title[class*="title-"]{
+  font-weight: 900;
+}
+
 .plan-meta .sub{
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--muted);
 }
 #planSub:empty{ display:none; }
@@ -940,7 +954,22 @@ option{
   #weekNotesWrap{ break-inside: avoid; page-break-inside: avoid; }
   .week-field{ break-inside: avoid; page-break-inside: avoid; }
 
-  .print-plan{ margin-bottom: 16px; break-after: page; page-break-after: always; }
+  /* each plan when printing all classes: use full page height and center content */
+  .print-plan{
+    width: 100%;
+    margin: 0 auto;
+    break-after: page;
+    page-break-after: always;
+
+    /* fill the printable area of an A4 landscape page
+       (210mm height - 2 * 10mm page margin = 190mm) so
+       we can truly center the timetable vertically */
+    box-sizing: border-box;
+    height: 190mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
   .print-plan:last-child{ break-after: auto; page-break-after: auto; }
   .week-notes-print{
     margin-top: 6px;
@@ -961,6 +990,29 @@ option{
   .tt-pause-fill{ border-bottom-color: rgba(0,0,0,.45); }
 
   .legend .legend-item{ background: #fff; }
+
+  /* Vertically center single-plan print (current class) on page */
+  body:not(.print-mode-all) .shell{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  body:not(.print-mode-all) .content{
+    width: 100%;
+  }
+
+  body:not(.print-mode-all) .print-inner{
+    transform-origin: center center;
+  }
+
+  /* when printing all classes, use full size (no extra 95% shrink)
+     so each plan fills its page more like the single-plan export */
+  body.print-mode-all .print-inner{
+    transform: none;
+    transform-origin: top center;
+  }
 }
 
 @page{ size: A4 landscape; margin: 10mm; }

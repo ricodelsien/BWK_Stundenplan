@@ -251,6 +251,32 @@
     brown:  { dark: '#7a6455', light: '#b7a69a' },
     mustard:{ dark: '#8a7a42', light: '#c2b26a' },
   };
+  
+  // ---- Plan title color (by class name) ----
+const PLAN_TITLE_COLOR_MAP = [
+  { match: /^AVöD\s*I\b/i,  cls: 'title-blue' },
+  { match: /^AVöD\s*II\b/i, cls: 'title-red'  },
+  // { match: /^AVöD\s*III\b/i, cls: 'title-green' },
+];
+
+function getPlanTitleClass(planName){
+  if(!planName) return '';
+  const hit = PLAN_TITLE_COLOR_MAP.find(x => x.match.test(planName));
+  return hit ? hit.cls : '';
+}
+
+function applyPlanTitleColor(planName){
+  const el = document.querySelector('#planTitle');
+  if(!el) return;
+
+  // remove any existing title-* classes
+  [...el.classList].forEach(c => {
+    if(c.startsWith('title-')) el.classList.remove(c);
+  });
+
+  const cls = getPlanTitleClass(planName);
+  if(cls) el.classList.add(cls);
+}
 
   function isLightTheme(){
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
@@ -283,6 +309,31 @@
   };
 
   // ---- Utilities ----
+
+function ensureDate(x){
+  if (x instanceof Date) return x;
+  // ISO "YYYY-MM-DD" wird sonst teils als UTC interpretiert.
+  // Für lokale Darstellung ist das hier stabiler:
+  if (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)) {
+    return new Date(x + 'T00:00:00');
+  }
+  return new Date(x);
+}
+
+function formatDateShort(d){
+  const dt = ensureDate(d);
+  return dt.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' });
+}
+
+function formatDateDMY(d){
+  const dt = ensureDate(d);
+  return dt.toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+function formatDateLong(d){
+  const dt = ensureDate(d);
+  return dt.toLocaleDateString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric' });
+}
 
   function uid(prefix='id'){
     return `${prefix}_${Math.random().toString(16).slice(2)}_${Date.now().toString(16)}`;
@@ -998,6 +1049,9 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
     const planName = plan?.name ? plan.name : 'Klasse';
     // include class name so printouts stay unambiguous
     $('#planTitle').textContent = `Stundenplan – ${planName} – KW ${view.isoWeek} / ${view.isoYear}`;
+	
+	//NEW: title color by class name
+	applyPlanTitleColor(planName);
     const mon = new Date(wd.days[0]);
     const fri = new Date(wd.days[4]);
     $('#planSub').textContent = '';
@@ -1595,6 +1649,14 @@ Alle Einträge & Notizen dieser Klasse werden gelöscht.`
         </div>
         <div class="sub">${escapeHtml(leaderLabel)}</div>
       `;
+
+      // apply same color-coding as single-plan title
+      const titleEl = meta.querySelector('.title');
+      const titleCls = getPlanTitleClass(plan.name || '');
+      if(titleEl && titleCls){
+        titleEl.classList.add(titleCls);
+      }
+
       section.appendChild(meta);
 
       const grid = buildTimetableGridForPlan(plan, wd);
@@ -2621,6 +2683,16 @@ try{
     if(acc && ACCENT_PRESETS[acc]) data.settings.accentKey = acc;
     applyAccent();
 
+  // remove any existing title-* classes (safe & future-proof)
+  [...el.classList].forEach(c => {
+    if(c.startsWith('title-')) el.classList.remove(c);
+  });
+
+  if(!planName) return;
+
+  const hit = PLAN_TITLE_COLOR_MAP.find(x => x.match.test(planName));
+  if(hit) el.classList.add(hit.cls);
+
     $('#settingsDialog').close();
     saveData(true);
     renderTimetable();
@@ -2717,8 +2789,7 @@ try{
     toast(mode === 'replace' ? 'Import: ersetzt' : 'Import: zusammengeführt');
   }
 
-  // ---- Start ----
-
-  document.addEventListener('DOMContentLoaded', init);
+// ---- Start ----
+document.addEventListener('DOMContentLoaded', init);
 
 })();
